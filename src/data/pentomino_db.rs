@@ -1,5 +1,5 @@
-// Each line in the CSV file uses 4+ values to define one permutation of a pentomino.
-// - First value is the ID for a pentomino, from 0 to 11.
+// Each line in the CSV file has 4 values + 1D array piece to define one permutation of a pentomino.
+// - First value is the ID for a pentomino, from 1 to 12.
 // - Second value is the index of the permutation (rotation, flip, etc.), between 0 to 7.
 // - Third and fourth values are the X and Y sizes respectively.
 // - The remaining values define an X*Y matrix, displaying the shape of the pentomino.
@@ -20,6 +20,8 @@
 // X X X
 // 0 0 X
 
+use std::collections::HashSet;
+
 pub struct PentominoDB {
     pub data: Vec<Vec<Vec<Vec<u8>>>>,
 }
@@ -29,6 +31,18 @@ impl PentominoDB {
         let data = PentominoDB::load_pentominoes();
 
         // Self::print_data(&data);
+
+        // print first mutation of each piece, including ID
+        // for id in 0..data.len() {
+        //     println!("ID: {}", id);
+        //     for i in 0..data[id][0].len() {
+        //         for j in 0..data[id][0][0].len() {
+        //             print!("{}", data[id][0][i][j]);
+        //         }
+        //         println!();
+        //     }
+        //     println!();
+        // }
 
         PentominoDB { data }
     }
@@ -50,27 +64,25 @@ impl PentominoDB {
         }
     }
 
+    // returns 3D vec:
+    // dimensions: 1- piece ID; 2- mutation; 3- 2D vec piece representation
     pub fn load_pentominoes() -> Vec<Vec<Vec<Vec<u8>>>> {
-        let mut dynamic_list: Vec<Vec<Vec<Vec<u8>>>> = Vec::new();
+        // 12 pentominoes, 4 permutations each
+        let mut pentominoes: Vec<Vec<Vec<Vec<u8>>>> = vec![vec![Vec::new(); 4]; 12];
 
         // 'include_str!':
         // small csv file, so no memory overhead
         // loaded at compile time, so no runtime file-reading overhead
-        let data = include_str!("pentomino_db.csv");
+        let csv = include_str!("pentomino_db.csv");
 
-        for line in data.lines() {
+        for line in csv.lines() {
             let values: Vec<u8> = line.split(',').map(|s| s.parse().unwrap()).collect();
 
-            let id = values[0] as usize;
+            let piece_id = values[0] as usize;
+            let permutation = values[1] as usize;
             let x_size = values[2] as usize;
             let y_size = values[3] as usize;
 
-            while id >= dynamic_list.len() {
-                dynamic_list.push(Vec::new());
-            }
-
-            // '0u8':
-            // suffixing '0' with 'u8' tells the vec macro to use 'u8' for the vec values'
             let mut piece = vec![vec![0u8; y_size]; x_size];
 
             // 1d array to 2d array
@@ -78,9 +90,15 @@ impl PentominoDB {
                 piece[i / y_size][i % y_size] = values[4 + i];
             }
 
-            dynamic_list[id].push(piece);
+            pentominoes[piece_id][permutation] = piece;
         }
 
-        dynamic_list
+        // remove duplicate mutations
+        for id in 0..pentominoes.len() {
+            let mut seen = HashSet::new();
+            pentominoes[id].retain(|mutation| seen.insert(mutation.clone()));
+        }
+
+        pentominoes
     }
 }

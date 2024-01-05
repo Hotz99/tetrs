@@ -3,6 +3,8 @@ use std::collections::VecDeque;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
+pub const STACK_SIZE: usize = 5;
+
 pub struct NextShapes {
     all_shapes: Vec<char>,
     available_shapes: Vec<char>,
@@ -16,7 +18,7 @@ impl NextShapes {
             all_shapes: vec!['X', 'V', 'Z', 'W', 'I', 'T', 'Y', 'L', 'N', 'P', 'U', 'F'],
             available_shapes: Vec::new(),
             next_up_shapes: VecDeque::new(),
-            stack_size: 6,
+            stack_size: STACK_SIZE,
         };
 
         next_shapes.refresh();
@@ -47,13 +49,16 @@ impl NextShapes {
     }
 
     pub fn get_next_stack(&mut self) -> Vec<char> {
-        let mut next_stack = Vec::with_capacity(self.stack_size);
-        for _ in 0..self.stack_size {
-            next_stack.push(self.next_up_shapes.front().cloned().unwrap());
-            self.next_up_shapes.pop_front();
-            let next = self.get_next_shape_from_pool();
-            self.next_up_shapes.push_back(next);
+        let mut next_stack = Vec::with_capacity(STACK_SIZE);
+
+        for i in 0..STACK_SIZE {
+            next_stack.push(self.next_up_shapes[i]);
         }
+
+        self.next_up_shapes.pop_front();
+        let next = self.get_next_shape_from_pool();
+        self.next_up_shapes.push_back(next);
+
         next_stack
     }
 }

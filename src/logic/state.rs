@@ -1,12 +1,18 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+use std::time::Duration;
+use std::{fmt, thread};
+
+use crate::ui;
 
 pub const FIELD_WIDTH: u8 = 5;
 pub const FIELD_HEIGHT: u8 = 15;
+pub const EMPTY: u8 = 12;
 
 #[derive(Eq, Clone)]
 pub struct State {
     pub field: Vec<Vec<u8>>,
+    pub uncleared_field: Vec<Vec<u8>>,
     pub parent_state: Option<Box<State>>,
     pub heuristic: i32,
     pub remaining_pieces: Vec<char>,
@@ -17,62 +23,164 @@ pub struct State {
 impl State {
     pub fn new(
         field: &Vec<Vec<u8>>,
+        uncleared_field: &Vec<Vec<u8>>,
         parent_state: Option<Box<State>>,
         remaining_pieces: &Vec<char>,
         used_ids: &Vec<bool>,
     ) -> State {
         State {
             field: field.clone(),
+            uncleared_field: uncleared_field.clone(),
             parent_state: Some(parent_state.clone().unwrap()),
             heuristic: 0,
             remaining_pieces: remaining_pieces.clone(),
             used_ids: used_ids.clone(),
-            cleared_rows: 0,
+            cleared_rows: parent_state.unwrap().cleared_rows,
         }
     }
 
-    pub fn initial_state() -> State {
+    pub fn initial_state(pieces: &Vec<char>) -> State {
         State {
-            field: vec![vec![255; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize],
+            field: vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize],
+            uncleared_field: vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize],
             parent_state: None,
             heuristic: 0,
-            remaining_pieces: Vec::new(),
+            remaining_pieces: pieces.clone(),
             used_ids: Vec::new(),
             cleared_rows: 0,
         }
     }
 
-    fn heuristic(&mut self) -> i32 {
-        // let cleared_rows_for_round = self.clear_full_rows(search, false, 0, true);
-        let cleared_rows_for_round = 0;
-        self.cleared_rows += cleared_rows_for_round;
+    pub fn get_full_rows(&mut self) -> u32 {
+        let mut cleared_rows = 0;
+        let mut new_field = vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize];
 
-        let mut penalty = 0;
-        let empty = 0;
-
-        for row in 0..FIELD_HEIGHT {
-            // penalty bias towards bottom rows
-            let penalize_top = (12 * FIELD_HEIGHT as i32 / (row as i32 + 1)) << 13;
-
-            for col in 0..FIELD_WIDTH {
-                if self.field[row as usize][col as usize] != empty {
-                    penalty += penalize_top;
-                } else {
-                    penalty -= penalize_top;
-                }
+        for row in self.field.iter().rev() {
+            if row.iter().all(|&cell| cell != EMPTY) {
+                cleared_rows += 1;
+            } else {
+                new_field.pop();
+                new_field.insert(0, row.clone());
             }
         }
 
-        penalty -= cleared_rows_for_round.pow(4) as i32 * 9000;
+        self.field = new_field;
 
-        self.heuristic = penalty;
-        penalty
+        cleared_rows
     }
 
-    // Stub for clear_full_rows. Implement the logic as per your requirement.
-    fn clear_full_rows(&mut self) -> u32 {
-        // Implementation goes here
-        0
+    pub fn animate_clearing(&mut self) {
+        let mut new_field = vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize];
+
+        for row in self.field.iter().rev() {
+            thread::sleep(Duration::from_millis(10));
+
+            ui::field_ui::draw_field(&new_field);
+
+            if row.iter().all(|&cell| cell != EMPTY) {
+                new_field.pop();
+                new_field.insert(0, vec![EMPTY; FIELD_WIDTH as usize]);
+            } else {
+                new_field.pop();
+                new_field.insert(0, row.clone());
+            }
+        }
+
+        self.field = new_field;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clear_full_rows() {
+        let field = vec![
+            vec![9, 9, EMPTY, EMPTY, EMPTY],
+            vec![9, 9, EMPTY, EMPTY, EMPTY],
+            vec![9, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![1, 1, 1, 1, 1],
+            vec![1, 1, 1, 1, 1],
+        ];
+
+        let mut state = State::initial_state(&vec!['I', 'Z', 'T', 'L', 'O']);
+        state.field = field;
+
+        let full_rows = state.get_full_rows();
+
+        assert_eq!(full_rows, 2);
+
+        assert_eq!(state.field.len(), 15);
+        assert_eq!(state.field[13], vec![EMPTY; FIELD_WIDTH as usize]);
+        assert_eq!(state.field[14], vec![EMPTY; FIELD_WIDTH as usize]);
+
+        assert_eq!(state.cleared_rows, 2);
+    }
+}
+
+impl fmt::Display for State {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "\nHeuristic: {}", self.heuristic)?;
+        writeln!(f, "Cleared: {}\n", self.cleared_rows)?;
+
+        // writeln!(f, "Field:");
+        for row in &self.field {
+            for &cell in row {
+                let symbol = match cell {
+                    0 => 'X',
+                    1 => 'I',
+                    2 => 'Z',
+                    3 => 'T',
+                    4 => 'U',
+                    5 => 'V',
+                    6 => 'W',
+                    7 => 'Y',
+                    8 => 'L',
+                    9 => 'P',
+                    10 => 'N',
+                    11 => 'F',
+                    _ => '_',
+                };
+                write!(f, "{} ", symbol)?;
+            }
+            writeln!(f)?;
+        }
+
+        // writeln!(f, "Uncleared Field:");
+        // for row in &self.uncleared_field {
+        //     for &cell in row {
+        //         let symbol = match cell {
+        //             0 => 'X',
+        //             1 => 'I',
+        //             2 => 'Z',
+        //             3 => 'T',
+        //             4 => 'U',
+        //             5 => 'V',
+        //             6 => 'W',
+        //             7 => 'Y',
+        //             8 => 'L',
+        //             9 => 'P',
+        //             10 => 'N',
+        //             11 => 'F',
+        //             _ => '_',
+        //         };
+        //         write!(f, "{} ", symbol)?;
+        //     }
+        //     writeln!(f)?;
+        // }
+
+        Ok(())
     }
 }
 
@@ -98,7 +206,8 @@ impl PartialEq for State {
 
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.heuristic.cmp(&other.heuristic)
+        // makes astar queue a min-heap
+        other.heuristic.cmp(&self.heuristic)
     }
 }
 
