@@ -1,3 +1,1 @@
-Rust implementation of our uni group project for the Tetris bot.
-
-Why? Let's see if I can make a faster program simply by changing the language.
+Heuristic Tetris-playing bot, inspired by our uni group project.
