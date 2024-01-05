@@ -1,10 +1,13 @@
 use macroquad::prelude::*;
 
-use crate::logic::state;
+use crate::logic::{
+    id_manager::{self},
+    state,
+};
 
 const SCALE: f32 = 40.0;
 
-pub fn draw_field(field: &Vec<Vec<u8>>) {
+pub fn draw_field(field: &Vec<Vec<u16>>) {
     clear_background(BLACK);
 
     for row in 0..field.len() {
@@ -15,7 +18,7 @@ pub fn draw_field(field: &Vec<Vec<u8>>) {
                     row as f32 * SCALE,
                     SCALE - 1.0,
                     SCALE - 1.0,
-                    get_color(field[row][col]),
+                    get_color(id_manager::get_pent_id(field[row][col])),
                 );
             }
         }

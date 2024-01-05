@@ -1,15 +1,20 @@
 use std::collections::{BinaryHeap, HashSet};
 
-use crate::ui;
-
 use crate::data::pentomino_db::PentominoDB;
 
-use super::state::{self, State};
+use super::{
+    id_manager::{self, IdManager},
+    state::{self, State},
+};
 
 pub struct Bot {}
 
 impl Bot {
-    pub fn astar_search(state: &State, pent_db: &PentominoDB) -> Option<State> {
+    pub fn astar_search(
+        state: &State,
+        pent_db: &PentominoDB,
+        id_manager: &mut IdManager,
+    ) -> Option<State> {
         let mut visited = HashSet::new();
         let mut queue = BinaryHeap::new();
 
@@ -35,13 +40,15 @@ impl Bot {
                     }
                 }
 
-                // final_state.animate_clearing();
-
                 return Some(final_state);
             }
 
-            let children_states =
-                Self::generate_states(&current_state, current_state.remaining_pieces[0], pent_db);
+            let children_states = Self::generate_states(
+                &current_state,
+                current_state.remaining_pieces[0],
+                pent_db,
+                id_manager,
+            );
 
             for mut child in children_states {
                 if visited.insert(child.clone()) {
@@ -55,16 +62,22 @@ impl Bot {
         None
     }
 
-    fn generate_states(parent_state: &State, piece: char, pent_db: &PentominoDB) -> Vec<State> {
+    fn generate_states(
+        parent_state: &State,
+        piece: char,
+        pent_db: &PentominoDB,
+        id_manager: &mut IdManager,
+    ) -> Vec<State> {
         let mut states = Vec::new();
-        let piece_id = Self::char_to_id(piece);
+        let pent_id = id_manager::char_to_id(piece);
+        let composite_id = id_manager::create_composite_id(&pent_id, &id_manager.next_piece_id());
 
-        for mutation in &pent_db.data[piece_id as usize] {
+        for mutation in &pent_db.data[pent_id as usize] {
             for x in 0..=(state::FIELD_WIDTH as usize - mutation[0].len()) {
                 for y in 0..=(state::FIELD_HEIGHT as usize - mutation.len()) {
                     let mut parent_clone = parent_state.clone();
 
-                    if Self::try_place(&mut parent_clone, mutation, &piece_id, x, y) {
+                    if Self::try_place(&mut parent_clone, mutation, composite_id, x, y) {
                         let child_state = State::new(
                             &parent_clone.field.clone(),
                             &parent_clone.uncleared_field.clone(),
@@ -76,7 +89,6 @@ impl Bot {
                                 .filter(|&x| *x != piece)
                                 .cloned()
                                 .collect(),
-                            &parent_state.used_ids.clone(),
                         );
 
                         states.push(child_state);
@@ -89,14 +101,14 @@ impl Bot {
 
     fn try_place(
         state: &mut State,
-        piece: &Vec<Vec<u8>>,
-        piece_id: &u8,
+        mutation: &Vec<Vec<u8>>,
+        composite_id: u16,
         x: usize,
         y: usize,
     ) -> bool {
-        for delta_x in 0..piece[0].len() {
-            for delta_y in 0..piece.len() {
-                if piece[delta_y][delta_x] == 0 {
+        for delta_x in 0..mutation[0].len() {
+            for delta_y in 0..mutation.len() {
+                if mutation[delta_y][delta_x] == 0 {
                     continue;
                 }
 
@@ -117,7 +129,7 @@ impl Bot {
                 state.uncleared_field = state.field.clone();
 
                 // actually place the piece
-                state.field[field_y][field_x] = piece_id.clone();
+                state.field[field_y][field_x] = composite_id;
             }
         }
 
@@ -140,31 +152,11 @@ impl Bot {
             }
         }
 
-        // BUG: clear_full_rows clears the whole field ???
-
         let cleared_rows = state.get_full_rows();
 
         penalty -= (cleared_rows ^ 4 * 9000) as i32;
 
         penalty
-    }
-
-    fn char_to_id(c: char) -> u8 {
-        match c {
-            'X' => 0,
-            'I' => 1,
-            'Z' => 2,
-            'T' => 3,
-            'U' => 4,
-            'V' => 5,
-            'W' => 6,
-            'Y' => 7,
-            'L' => 8,
-            'P' => 9,
-            'N' => 10,
-            'F' => 11,
-            _ => 255,
-        }
     }
 }
 
@@ -261,7 +253,7 @@ mod tests {
         let x = 0;
         let y = 0;
 
-        let result = Bot::try_place(&mut state, &piece, &piece_id, x, y);
+        let result = Bot::try_place(&mut state, &piece, piece_id, x, y);
 
         assert_eq!(result, false);
     }
