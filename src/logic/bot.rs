@@ -51,8 +51,6 @@ impl Bot {
                 }
             }
         }
-
-        println!("No solution found");
         None
     }
 
