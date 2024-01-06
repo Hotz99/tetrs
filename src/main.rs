@@ -207,20 +207,21 @@ async fn main() {
     loop {
         ui::field_ui::draw_field(&best_state.field);
 
-        best_state.remaining_pieces = lookahead.get_next_stack();
+        next_frame().await;
 
-        // best_state.remaining_pieces = vec!['P'];
+        // best_state.remaining_pieces = lookahead.get_next_stack();
+
+        best_state.remaining_pieces = vec!['P'];
 
         println!("STACK: {:?}", best_state.remaining_pieces);
 
-        best_state = Bot::astar_search(&best_state, &db, &mut id_manager).unwrap();
+        // app hangs until heuristic_search returns
+        best_state = Bot::heuristic_search(&best_state, &db, &mut id_manager).unwrap_or(best_state);
 
         // println!("{}", best_state);
 
-        thread::sleep(Duration::from_millis(200));
-
         logic::game::update(&mut best_state);
 
-        next_frame().await
+        thread::sleep(Duration::from_millis(200));
     }
 }

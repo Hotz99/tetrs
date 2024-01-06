@@ -10,7 +10,7 @@ use super::{
 pub struct Bot {}
 
 impl Bot {
-    pub fn astar_search(
+    pub fn heuristic_search(
         state: &State,
         pent_db: &PentominoDB,
         id_manager: &mut IdManager,
@@ -31,7 +31,7 @@ impl Bot {
                 // with a lookahead (state::STACK_SIZE) of N, go back N-1 generations
 
                 let mut final_state = current_state;
-                let n = 5;
+                let n = 1;
 
                 for _ in 0..n - 1 {
                     match final_state.parent_state {
@@ -73,11 +73,13 @@ impl Bot {
         let composite_id = id_manager::create_composite_id(&pent_id, &id_manager.next_piece_id());
 
         for mutation in &pent_db.data[pent_id as usize] {
-            for x in 0..=(state::FIELD_WIDTH as usize - mutation[0].len()) {
-                for y in 0..=(state::FIELD_HEIGHT as usize - mutation.len()) {
+            // reverse order to start with bottom rows
+            for row in (0..=(state::FIELD_HEIGHT as usize - mutation.len())).rev() {
+                for col in 0..=(state::FIELD_WIDTH as usize - mutation[0].len()) {
                     let mut parent_clone = parent_state.clone();
 
-                    if Self::try_place(&mut parent_clone, mutation, composite_id, x, y) {
+                    // [row][col] is the top-left of the 2d vec 'mutation'
+                    if Self::try_place(&mut parent_clone, mutation, composite_id, row, col) {
                         let child_state = State::new(
                             &parent_clone.field.clone(),
                             &parent_clone.uncleared_field.clone(),
@@ -103,33 +105,45 @@ impl Bot {
         state: &mut State,
         mutation: &Vec<Vec<u8>>,
         composite_id: u16,
-        x: usize,
-        y: usize,
+        row: usize,
+        col: usize,
     ) -> bool {
-        for delta_x in 0..mutation[0].len() {
-            for delta_y in 0..mutation.len() {
-                if mutation[delta_y][delta_x] == 0 {
+        for delta_row in (0..mutation.len()).rev() {
+            for delta_col in 0..mutation[0].len() {
+                // mutation is a 2d vec of 0s and 1s
+                if mutation[delta_row][delta_col] == 0 {
                     continue;
                 }
 
-                let field_x = x + delta_x;
+                let tile_row = row + delta_row;
 
-                let field_y = y + delta_y;
+                let tile_col = col + delta_col;
 
                 // if cell is out of bounds
-                if field_x >= state.field[0].len() || field_y >= state.field.len() {
+                if tile_col >= state.field[0].len() || tile_row >= state.field.len() {
                     return false;
                 }
 
                 // if already occupied / overlap with other pieces
-                if state.field[field_y][field_x] != state::EMPTY {
+                if state.field[tile_row][tile_col] != state::EMPTY {
                     return false;
+                }
+
+                // if floating
+                if tile_row != state.field.len() - 1 {
+                    // if bottom-most tile
+                    if delta_row == mutation.len() - 1 {
+                        // if below is empty
+                        if state.field[tile_row + 1][tile_col] == state::EMPTY {
+                            return false;
+                        }
+                    }
                 }
 
                 state.uncleared_field = state.field.clone();
 
-                // actually place the piece
-                state.field[field_y][field_x] = composite_id;
+                // actually place the tile
+                state.field[tile_row][tile_col] = composite_id;
             }
         }
 

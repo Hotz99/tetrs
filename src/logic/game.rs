@@ -47,8 +47,6 @@ pub fn update(state: &mut State) {
         }
     }
 
-    println!("can P fall: {}", can_piece_fall[0]);
-
     // Move each piece down if it can fall
     for row in (0..FIELD_HEIGHT).rev() {
         for col in (0..FIELD_WIDTH).rev() {
