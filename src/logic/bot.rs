@@ -20,20 +20,14 @@ impl Bot {
 
         visited.insert(state.clone());
 
-        let initial_state = state.clone();
-
-        // println!("INITIAL STATE: {}", initial_state.clone());
-
-        queue.push(initial_state);
+        queue.push(state.clone());
 
         while let Some(current_state) = queue.pop() {
             if current_state.remaining_pieces.is_empty() {
-                // with a lookahead (state::STACK_SIZE) of N, go back N-1 generations
-
                 let mut final_state = current_state;
-                let n = 1;
 
-                for _ in 0..n - 1 {
+                // better approach ?
+                loop {
                     match final_state.parent_state {
                         Some(parent_state) => final_state = *parent_state,
                         None => break,

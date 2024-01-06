@@ -22,9 +22,10 @@ pub fn update(state: &mut State) {
 
     // gravity
 
-    let mut can_piece_fall = [true; 256]; // Assuming piece_id is u8
+    // bool for each piece id
+    let mut floating = [true; 256];
 
-    // Check if each piece can fall
+    // find floating pieces
     for row in 0..FIELD_HEIGHT as usize {
         for col in 0..FIELD_WIDTH as usize {
             let tile = state.field[row][col];
@@ -36,24 +37,24 @@ pub fn update(state: &mut State) {
             let piece_id = id_manager::get_piece_id(tile);
 
             if row == FIELD_HEIGHT as usize - 1 {
-                can_piece_fall[piece_id as usize] = false;
+                floating[piece_id as usize] = false;
             } else {
                 let below = state.field[row + 1][col];
 
                 if below != EMPTY && below != tile {
-                    can_piece_fall[piece_id as usize] = false;
+                    floating[piece_id as usize] = false;
                 }
             }
         }
     }
 
-    // Move each piece down if it can fall
+    // shift floating pieces down by 1 row
     for row in (0..FIELD_HEIGHT).rev() {
         for col in (0..FIELD_WIDTH).rev() {
             let tile = state.field[row as usize][col as usize];
             if tile != EMPTY {
                 let piece_id = id_manager::get_piece_id(tile);
-                if can_piece_fall[piece_id as usize] && row < FIELD_HEIGHT - 1 {
+                if floating[piece_id as usize] && row < FIELD_HEIGHT - 1 {
                     state.field[row as usize][col as usize] = EMPTY;
                     state.field[(row + 1) as usize][col as usize] = tile;
                 }

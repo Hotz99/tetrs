@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::{fmt, thread};
 
+use super::id_manager;
+
 pub const FIELD_WIDTH: u8 = 5;
 pub const FIELD_HEIGHT: u8 = 15;
 pub const EMPTY: u16 = 12;
@@ -70,8 +72,13 @@ impl fmt::Display for State {
 
         // writeln!(f, "Field:");
         for row in &self.field {
-            for &cell in row {
-                let symbol = match cell {
+            for &tile in row {
+                if tile == EMPTY {
+                    write!(f, "_ ")?;
+                    continue;
+                }
+
+                let symbol = match id_manager::get_pent_id(tile) {
                     0 => 'X',
                     1 => 'I',
                     2 => 'Z',
