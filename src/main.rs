@@ -2,7 +2,10 @@ mod data;
 mod logic;
 mod ui;
 
-use std::{thread, time::Duration};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 use logic::{
     bot::Bot,
@@ -201,8 +204,7 @@ async fn main() {
         ],
     ];
 
-    // best_state.field = field2.clone();
-    // best_state.uncleared_field = field2;
+    // best_state.field = field2;
 
     loop {
         ui::field_ui::draw_field(&best_state.field);
@@ -210,9 +212,11 @@ async fn main() {
 
         best_state.remaining_pieces = lookahead.get_next_stack();
 
-        // best_state.remaining_pieces = vec!['L'];
+        // best_state.remaining_pieces = vec!['P'];
 
         println!("STACK: {:?}", best_state.remaining_pieces);
+
+        let start_time = Instant::now();
 
         // app hangs until heuristic_search returns
         match Bot::heuristic_search(&best_state, &db, &mut id_manager) {
@@ -223,14 +227,16 @@ async fn main() {
             }
         };
 
-        println!("{}", best_state);
+        let end_time = Instant::now();
+        println!("Response time: {:?}", end_time - start_time);
+
+        // println!("{}", best_state);
 
         ui::field_ui::draw_field(&best_state.field);
 
         next_frame().await;
-        thread::sleep(Duration::from_millis(200));
+        thread::sleep(Duration::from_millis(1000));
 
-        // logic::game::update(&mut best_state);
         logic::game::clear_full_rows(&mut best_state, &true);
 
         ui::field_ui::draw_field(&best_state.field);

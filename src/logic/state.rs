@@ -11,7 +11,6 @@ pub const EMPTY: u16 = 12;
 #[derive(Eq, Clone)]
 pub struct State {
     pub field: Vec<Vec<u16>>,
-    pub uncleared_field: Vec<Vec<u16>>,
     pub parent_state: Option<Box<State>>,
     pub heuristic: i32,
     pub remaining_pieces: Vec<char>,
@@ -21,13 +20,11 @@ pub struct State {
 impl State {
     pub fn new(
         field: &Vec<Vec<u16>>,
-        uncleared_field: &Vec<Vec<u16>>,
         parent_state: Option<Box<State>>,
         remaining_pieces: &Vec<char>,
     ) -> State {
         State {
             field: field.clone(),
-            uncleared_field: uncleared_field.clone(),
             parent_state: Some(parent_state.clone().unwrap()),
             heuristic: 0,
             remaining_pieces: remaining_pieces.clone(),
@@ -38,7 +35,6 @@ impl State {
     pub fn initial_state(pieces: &Vec<char>) -> State {
         State {
             field: vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize],
-            uncleared_field: vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize],
             parent_state: None,
             heuristic: 0,
             remaining_pieces: pieces.clone(),
@@ -46,22 +42,16 @@ impl State {
         }
     }
 
-    pub fn get_full_rows(&mut self) -> u32 {
-        let mut cleared_rows = 0;
-        let mut new_field = vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize];
+    pub fn count_full_rows(&self) -> u8 {
+        let mut full_rows = 0;
 
         for row in self.field.iter().rev() {
             if row.iter().all(|&cell| cell != EMPTY) {
-                cleared_rows += 1;
-            } else {
-                new_field.pop();
-                new_field.insert(0, row.clone());
+                full_rows += 1;
             }
         }
 
-        self.field = new_field;
-
-        cleared_rows
+        full_rows
     }
 }
 
