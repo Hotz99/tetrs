@@ -1,0 +1,9 @@
+1) why salt state hashes ? field is a 2d array of composite IDs, which are unique, hence no
+risk of hash collisions, no need to salt
+2) why have a calculatedHeuristic field in State if the comparator for the queue is the return of heuristic()?
+3) why iterate bottom-up when placing pieces?
+4) we find the 'best' state by checking each valid child state and return the one with greatest heuristic score ?
+5) the algo design looks more like depth-first backtracking algo than astar
+6) why make the field [5][15] and not [15][5] ?
+7) benefit for clearing rows scales non linearly, but is linear when clearedRowsForRound is between 0 and 15, which is always
+8) remove duplicate mutations when loading pent data

@@ -3,7 +3,9 @@ use std::collections::{BinaryHeap, HashSet};
 use crate::data::pentomino_db::PentominoDB;
 
 use super::{
+    game,
     id_manager::{self, IdManager},
+    next_shapes,
     state::{self, State},
 };
 
@@ -26,7 +28,7 @@ impl Bot {
             if current_state.remaining_pieces.is_empty() {
                 let mut final_state = current_state;
 
-                loop {
+                for _ in 0..next_shapes::STACK_SIZE - 1 {
                     match final_state.parent_state {
                         Some(parent_state) => final_state = *parent_state,
                         None => break,
@@ -71,12 +73,6 @@ impl Bot {
 
                     // [row][col] is top-left of 2d vec 'mutation'
                     if Self::try_place(&mut child_state, mutation, composite_id, row, col) {
-                        // let child_state = State::new(
-                        //     &parent_clone.field,
-                        //     Some(Box::new(parent_clone)),
-                        //     &parent_clone.remaining_pieces,
-                        // );
-
                         child_state.parent_state = Some(Box::new(parent_state.clone()));
                         child_state.remaining_pieces.remove(0);
 
@@ -136,6 +132,10 @@ impl Bot {
     }
 
     pub fn heuristic(state: &State) -> i32 {
+        let mut state_clone = state.clone();
+
+        game::clear_full_rows(&mut state_clone, &true);
+
         let mut penalty = 0;
 
         for row in 0..state::FIELD_HEIGHT {
@@ -143,7 +143,7 @@ impl Bot {
             let penalize_top = (15 * state::FIELD_HEIGHT as i32 / (row as i32 + 1)) << 13;
 
             for col in 0..state::FIELD_WIDTH {
-                if state.field[row as usize][col as usize] != state::EMPTY {
+                if state_clone.field[row as usize][col as usize] != state::EMPTY {
                     penalty += penalize_top;
                 } else {
                     penalty -= penalize_top;
@@ -151,11 +151,11 @@ impl Bot {
             }
         }
 
-        let full_rows = state.count_full_rows() as u32;
+        let full_rows = state_clone.count_full_rows() as u32;
 
-        // penalty -= (full_rows ^ 4 * 9000) as i32;
+        penalty -= (full_rows ^ 4 * 9000) as i32;
 
-        penalty -= (full_rows * 9000) as i32;
+        // penalty -= (full_rows * 9000) as i32;
 
         penalty
     }
@@ -212,10 +212,10 @@ mod tests {
             vec![9, EMPTY, EMPTY, EMPTY, EMPTY],
         ];
 
-        let heuristic_a = Bot::heuristic(&state_a);
+        let heuristic_a = Bot::heuristic(&mut state_a);
         println!("HEURISTIC A: {}", heuristic_a);
 
-        let heuristic_b = Bot::heuristic(&state_b);
+        let heuristic_b = Bot::heuristic(&mut state_b);
         println!("HEURISTIC B: {}", heuristic_b);
 
         // heuristic_a should be greater than heuristic_b

@@ -207,8 +207,8 @@ async fn main() {
     // best_state.field = field2;
 
     loop {
-        ui::field_ui::draw_field(&best_state.field);
-        next_frame().await;
+        // ui::field_ui::draw_field(&best_state.field);
+        // next_frame().await;
 
         best_state.remaining_pieces = lookahead.get_next_stack();
 
@@ -230,18 +230,18 @@ async fn main() {
         let end_time = Instant::now();
         println!("Response time: {:?}", end_time - start_time);
 
-        // println!("{}", best_state);
+        println!("{}", best_state);
 
-        ui::field_ui::draw_field(&best_state.field);
+        // ui::field_ui::draw_field(&best_state.field);
 
-        next_frame().await;
-        thread::sleep(Duration::from_millis(1000));
+        // next_frame().await;
+        // thread::sleep(Duration::from_millis(1000));
 
         logic::game::clear_full_rows(&mut best_state, &true);
 
-        ui::field_ui::draw_field(&best_state.field);
+        // ui::field_ui::draw_field(&best_state.field);
 
-        next_frame().await;
+        // next_frame().await;
 
         logic::game::gravity(&mut best_state, &true, &mut id_manager);
     }
