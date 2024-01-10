@@ -21,12 +21,11 @@ impl Bot {
         let mut queue = BinaryHeap::new();
 
         visited.insert(state.clone());
-
         queue.push(state.clone());
 
         while let Some(current_state) = queue.pop() {
             if current_state.remaining_pieces.is_empty() {
-                let mut final_state = current_state;
+                let mut final_state = current_state.clone();
 
                 for _ in 0..next_shapes::STACK_SIZE - 1 {
                     match final_state.parent_state {
@@ -47,7 +46,7 @@ impl Bot {
 
             for mut child in children_states {
                 if visited.insert(child.clone()) {
-                    child.heuristic = Self::heuristic(&child);
+                    child.heuristic = Self::heuristic(&mut child);
                     queue.push(child);
                 }
             }
@@ -131,33 +130,29 @@ impl Bot {
         true
     }
 
-    pub fn heuristic(state: &State) -> i32 {
-        let mut state_clone = state.clone();
+    pub fn heuristic(state: &mut State) -> i32 {
+        let full_rows = state.count_full_rows() as u32;
 
-        game::clear_full_rows(&mut state_clone, &true);
+        let mut score = 0;
 
-        let mut penalty = 0;
+        score += (full_rows ^ 4 * 9000) as i32;
+
+        game::clear_full_rows(state, &true);
 
         for row in 0..state::FIELD_HEIGHT {
-            // penalty bias towards bottom rows
+            // score bias towards bottom rows
             let penalize_top = (15 * state::FIELD_HEIGHT as i32 / (row as i32 + 1)) << 13;
 
             for col in 0..state::FIELD_WIDTH {
-                if state_clone.field[row as usize][col as usize] != state::EMPTY {
-                    penalty += penalize_top;
+                if state.field[row as usize][col as usize] != state::EMPTY {
+                    score -= penalize_top;
                 } else {
-                    penalty -= penalize_top;
+                    score += penalize_top;
                 }
             }
         }
 
-        let full_rows = state_clone.count_full_rows() as u32;
-
-        penalty -= (full_rows ^ 4 * 9000) as i32;
-
-        // penalty -= (full_rows * 9000) as i32;
-
-        penalty
+        score
     }
 }
 

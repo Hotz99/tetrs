@@ -230,18 +230,9 @@ async fn main() {
         let end_time = Instant::now();
         println!("Response time: {:?}", end_time - start_time);
 
-        println!("{}", best_state);
-
-        // ui::field_ui::draw_field(&best_state.field);
-
-        // next_frame().await;
-        // thread::sleep(Duration::from_millis(1000));
+        println!("Score: {}", best_state.cleared_rows);
 
         logic::game::clear_full_rows(&mut best_state, &true);
-
-        // ui::field_ui::draw_field(&best_state.field);
-
-        // next_frame().await;
 
         logic::game::gravity(&mut best_state, &true, &mut id_manager);
     }

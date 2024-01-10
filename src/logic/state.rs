@@ -11,6 +11,7 @@ pub const EMPTY: u16 = 12;
 #[derive(Eq, Clone)]
 pub struct State {
     pub field: Vec<Vec<u16>>,
+    // box to avoid recursive type
     pub parent_state: Option<Box<State>>,
     pub heuristic: i32,
     pub remaining_pieces: Vec<char>,
@@ -114,8 +115,7 @@ impl PartialEq for State {
 
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        // makes astar queue a min-heap
-        other.heuristic.cmp(&self.heuristic)
+        self.heuristic.cmp(&other.heuristic)
     }
 }
 
