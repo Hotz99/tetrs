@@ -25,7 +25,7 @@ impl Bot {
 
         while let Some(current_state) = queue.pop() {
             if current_state.remaining_pieces.is_empty() {
-                let mut final_state = current_state.clone();
+                let mut final_state = current_state;
 
                 for _ in 0..next_shapes::STACK_SIZE - 1 {
                     match final_state.parent_state {
@@ -33,6 +33,8 @@ impl Bot {
                         None => break,
                     }
                 }
+
+                println!("queue size: {}", queue.len());
 
                 return Some(final_state);
             }

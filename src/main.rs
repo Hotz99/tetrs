@@ -206,7 +206,10 @@ async fn main() {
 
     // best_state.field = field2;
 
-    loop {
+    let runs = 100;
+    let mut total_time = Duration::new(0, 0);
+
+    for i in 0..runs {
         // ui::field_ui::draw_field(&best_state.field);
         // next_frame().await;
 
@@ -214,7 +217,7 @@ async fn main() {
 
         // best_state.remaining_pieces = vec!['P'];
 
-        println!("STACK: {:?}", best_state.remaining_pieces);
+        // println!("STACK: {:?}", best_state.remaining_pieces);
 
         let start_time = Instant::now();
 
@@ -228,12 +231,19 @@ async fn main() {
         };
 
         let end_time = Instant::now();
-        println!("Response time: {:?}", end_time - start_time);
 
-        println!("Score: {}", best_state.cleared_rows);
+        let elapsed = end_time - start_time;
 
-        logic::game::clear_full_rows(&mut best_state, &true);
+        println!("run {i}: {:?}", elapsed);
 
-        logic::game::gravity(&mut best_state, &true, &mut id_manager);
+        total_time += elapsed;
+
+        // println!("Score: {}", best_state.cleared_rows);
+
+        // logic::game::clear_full_rows(&mut best_state, &true);
+
+        // logic::game::gravity(&mut best_state, &true, &mut id_manager);
     }
+
+    println!("avg: {:?}", total_time / runs);
 }
