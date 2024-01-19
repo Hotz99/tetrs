@@ -24,11 +24,7 @@ pub fn clear_full_rows(state: &mut State, clear: bool) {
     }
 }
 
-pub fn gravity(state: &mut State, fall: bool, id_manager: &mut IdManager) {
-    if !fall {
-        return;
-    };
-
+pub fn gravity(state: &mut State, id_manager: &mut IdManager) {
     // update composite_id of separated tiles
     for row in 0..FIELD_HEIGHT as usize {
         for col in 0..FIELD_WIDTH as usize {
@@ -50,31 +46,36 @@ pub fn gravity(state: &mut State, fall: bool, id_manager: &mut IdManager) {
     // map of composite_id to whether it's floating
     let mut floating_ids: HashMap<u16, bool> = HashMap::new();
 
-    find_floating(state, &mut floating_ids);
+    loop {
+        find_floating(state, &mut floating_ids);
 
-    // shift floating tiles down by 1 row
-    // reversed bc we want to shift the bottom-most tiles first
-    for row in (0..FIELD_HEIGHT as usize).rev() {
-        for col in 0..FIELD_WIDTH as usize {
-            let tile = state.field[row][col];
+        // TODO: this shit should be false at least once
+        if floating_ids.values().all(|&x| x == false) {
+            break;
+        }
 
-            if tile == EMPTY {
-                continue;
-            }
+        // shift floating tiles down by 1 row
+        // reversed bc we want to shift the bottom-most tiles first
+        for row in (0..FIELD_HEIGHT as usize).rev() {
+            for col in 0..FIELD_WIDTH as usize {
+                let tile = state.field[row][col];
 
-            let piece_id = id_manager::get_piece_id(tile);
+                if tile == EMPTY {
+                    continue;
+                }
 
-            if *floating_ids.get(&tile).unwrap_or(&true) {
-                state.field[row][col] = EMPTY;
-                state.field[row + 1][col] = tile;
+                let piece_id = id_manager::get_piece_id(tile);
 
-                println!("gravity: {}", state);
-                thread::sleep(std::time::Duration::from_millis(100));
+                if *floating_ids.get(&tile).unwrap_or(&true) {
+                    state.field[row][col] = EMPTY;
+                    state.field[row + 1][col] = tile;
+
+                    println!("gravity: {}", state);
+                    thread::sleep(std::time::Duration::from_millis(100));
+                }
             }
         }
     }
-
-    gravity(state, true, id_manager)
 }
 
 fn find_floating(state: &State, floating_ids: &mut HashMap<u16, bool>) {
@@ -270,7 +271,7 @@ mod tests {
         clear_full_rows(&mut state, true);
         println!("after clear {}", state);
 
-        gravity(&mut state, true, &mut id_manager);
+        gravity(&mut state, &mut id_manager);
 
         println!("after gravity {}", state);
 

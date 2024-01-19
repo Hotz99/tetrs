@@ -226,13 +226,13 @@ async fn main() {
         let start_time = Instant::now();
 
         // app hangs until heuristic_search returns
-        match Bot::heuristic_search(&state, &db, &mut id_manager) {
-            Some(solution) => {} //state = solution,
-            None => {
-                println!("No solution found");
-                break;
-            }
-        };
+        // match Bot::heuristic_search(&state, &db, &mut id_manager) {
+        //     Some(solution) => state = solution,
+        //     None => {
+        //         println!("No solution found");
+        //         break;
+        //     }
+        // };
 
         let end_time = Instant::now();
 
@@ -243,7 +243,7 @@ async fn main() {
         println!("{}", state);
         thread::sleep(Duration::from_millis(500));
 
-        game::gravity(&mut state, true, &mut id_manager);
+        game::gravity(&mut state, &mut id_manager);
 
         total_time += elapsed;
     }
