@@ -1,5 +1,7 @@
 use std::collections::{BinaryHeap, HashSet};
 
+use priority_queue::PriorityQueue;
+
 use crate::data::pentomino_db::PentominoDB;
 
 use super::{
@@ -18,12 +20,12 @@ impl Bot {
         id_manager: &mut IdManager,
     ) -> Option<State> {
         let mut visited = HashSet::new();
-        let mut queue = BinaryHeap::new();
+        let mut queue = PriorityQueue::new();
 
         visited.insert(state.clone());
-        queue.push(state.clone());
+        queue.push(state.clone(), 0);
 
-        while let Some(current_state) = queue.pop() {
+        while let Some((current_state, _)) = queue.pop() {
             if current_state.remaining_pieces.is_empty() {
                 let mut final_state = current_state;
 
@@ -46,10 +48,14 @@ impl Bot {
                 id_manager,
             );
 
+            if children_states.len() == 0 {
+                println!("NO_CHILD");
+            }
+
             for mut child in children_states {
                 if visited.insert(child.clone()) {
-                    child.heuristic = Self::heuristic(&mut child);
-                    queue.push(child);
+                    let score = Self::heuristic(&mut child);
+                    queue.push(child, score);
                 }
             }
         }
@@ -100,15 +106,14 @@ impl Bot {
                 }
 
                 let tile_row = row + delta_row;
-
                 let tile_col = col + delta_col;
 
-                // if cell is out of bounds
+                // if tile is out of bounds
                 if tile_col >= state.field[0].len() || tile_row >= state.field.len() {
                     return false;
                 }
 
-                // if already occupied / overlap with other pieces
+                // if overlapping with other tiles
                 if state.field[tile_row][tile_col] != state::EMPTY {
                     return false;
                 }
@@ -119,6 +124,7 @@ impl Bot {
                     if delta_row == mutation.len() - 1 {
                         // if below is empty
                         if state.field[tile_row + 1][tile_col] == state::EMPTY {
+                            // tile is floating
                             return false;
                         }
                     }
@@ -133,17 +139,21 @@ impl Bot {
     }
 
     pub fn heuristic(state: &mut State) -> i32 {
-        let full_rows = state.count_full_rows() as u32;
+        let full_rows = Self::count_full_rows(&state.field) as i32;
 
         let mut score = 0;
 
-        score += (full_rows ^ 4 * 9000) as i32;
+        score += full_rows ^ 4 * 9000;
 
-        game::clear_full_rows(state, &true);
+        // println!("b4 clear {}", state);
+
+        game::clear_full_rows(state, true);
+
+        // println!("after clear {}", state);
 
         for row in 0..state::FIELD_HEIGHT {
             // score bias towards bottom rows
-            let penalize_top = (15 * state::FIELD_HEIGHT as i32 / (row as i32 + 1)) << 13;
+            let penalize_top = (12 * state::FIELD_HEIGHT as i32 / (row as i32 + 1)) << 13;
 
             for col in 0..state::FIELD_WIDTH {
                 if state.field[row as usize][col as usize] != state::EMPTY {
@@ -156,6 +166,18 @@ impl Bot {
 
         score
     }
+
+    fn count_full_rows(field: &Vec<Vec<u16>>) -> u8 {
+        let mut full_rows = 0;
+
+        for row in field.iter().rev() {
+            if row.iter().all(|&cell| cell != state::EMPTY) {
+                full_rows += 1;
+            }
+        }
+
+        full_rows
+    }
 }
 
 #[cfg(test)]
@@ -164,20 +186,37 @@ mod tests {
     use state::EMPTY;
 
     #[test]
+    fn test_try_place() {
+        let mut state = State::initial_state(&vec!['X', 'I', 'Z', 'T', 'U']);
+
+        state.field = vec![
+            vec![1, 1, EMPTY, EMPTY, EMPTY],
+            vec![1, 1, EMPTY, EMPTY, EMPTY],
+            vec![1, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+        ];
+
+        let piece_id = 10;
+        let piece = vec![vec![1, 1], vec![1, 1], vec![1, 0]];
+
+        let result = Bot::try_place(&mut state, &piece, piece_id, 0, 2);
+
+        assert_eq!(result, false);
+    }
+
+    #[test]
     fn test_heuristic() {
-        let mut state_a = State::initial_state(&vec![
-            'X', 'I', 'Z', 'T', 'U', 'V', 'W', 'Y', 'L', 'P', 'N', 'F',
-        ]);
+        let mut state_a = State::initial_state(&vec!['X', 'I', 'Z', 'T', 'U']);
 
         state_a.field = vec![
-            vec![9, 9, EMPTY, EMPTY, EMPTY],
-            vec![9, 9, EMPTY, EMPTY, EMPTY],
-            vec![9, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
@@ -187,9 +226,7 @@ mod tests {
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
         ];
 
-        let mut state_b = State::initial_state(&vec![
-            'X', 'I', 'Z', 'T', 'U', 'V', 'W', 'Y', 'L', 'P', 'N', 'F',
-        ]);
+        let mut state_b = State::initial_state(&vec!['X', 'I', 'Z', 'T', 'U']);
 
         state_b.field = vec![
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
@@ -203,56 +240,19 @@ mod tests {
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![9, 9, EMPTY, EMPTY, EMPTY],
-            vec![9, 9, EMPTY, EMPTY, EMPTY],
-            vec![9, EMPTY, EMPTY, EMPTY, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
+            vec![1, 2, 3, 4, EMPTY],
         ];
 
-        let heuristic_a = Bot::heuristic(&mut state_a);
-        println!("HEURISTIC A: {}", heuristic_a);
+        println!("HEURISTIC A: {}", Bot::heuristic(&mut state_a));
 
-        let heuristic_b = Bot::heuristic(&mut state_b);
-        println!("HEURISTIC B: {}", heuristic_b);
+        println!("HEURISTIC B: {}", Bot::heuristic(&mut state_b));
 
         // heuristic_a should be greater than heuristic_b
         assert!(state_a.field.len() == 15);
         assert!(state_b.field.len() == 15);
-        assert!(heuristic_a > heuristic_b);
-    }
-
-    #[test]
-    fn test_try_place() {
-        let mut state = State::initial_state(&vec![
-            'X', 'I', 'Z', 'T', 'U', 'V', 'W', 'Y', 'L', 'P', 'N', 'F',
-        ]);
-
-        state.field = vec![
-            vec![1, 1, EMPTY, EMPTY, EMPTY],
-            vec![1, 1, EMPTY, EMPTY, EMPTY],
-            vec![1, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-            vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
-        ];
-
-        let piece_id = 10;
-        let piece = vec![vec![1, 1], vec![1, 1], vec![1, 0]];
-
-        let x = 0;
-        let y = 0;
-
-        let result = Bot::try_place(&mut state, &piece, piece_id, x, y);
-
-        assert_eq!(result, false);
+        assert!(Bot::heuristic(&mut state_a) < Bot::heuristic(&mut state_b));
     }
 }

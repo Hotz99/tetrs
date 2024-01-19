@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::{fmt, thread};
 
+use super::bot::Bot;
 use super::id_manager;
 
 pub const FIELD_WIDTH: u8 = 5;
@@ -13,7 +14,6 @@ pub struct State {
     pub field: Vec<Vec<u16>>,
     // box to avoid recursive type
     pub parent_state: Option<Box<State>>,
-    pub heuristic: i32,
     pub remaining_pieces: Vec<char>,
     pub cleared_rows: u32,
 }
@@ -27,7 +27,6 @@ impl State {
         State {
             field: field.clone(),
             parent_state: Some(parent_state.clone().unwrap()),
-            heuristic: 0,
             remaining_pieces: remaining_pieces.clone(),
             cleared_rows: parent_state.unwrap().cleared_rows,
         }
@@ -37,28 +36,14 @@ impl State {
         State {
             field: vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize],
             parent_state: None,
-            heuristic: 0,
             remaining_pieces: pieces.clone(),
             cleared_rows: 0,
         }
-    }
-
-    pub fn count_full_rows(&self) -> u8 {
-        let mut full_rows = 0;
-
-        for row in self.field.iter().rev() {
-            if row.iter().all(|&cell| cell != EMPTY) {
-                full_rows += 1;
-            }
-        }
-
-        full_rows
     }
 }
 
 impl fmt::Display for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "\nHeuristic: {}", self.heuristic)?;
         writeln!(f, "Cleared: {}\n", self.cleared_rows)?;
 
         // writeln!(f, "Field:");
@@ -110,17 +95,5 @@ impl Hash for State {
 impl PartialEq for State {
     fn eq(&self, other: &Self) -> bool {
         self.field == other.field && self.remaining_pieces == other.remaining_pieces
-    }
-}
-
-impl Ord for State {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.heuristic.cmp(&other.heuristic)
-    }
-}
-
-impl PartialOrd for State {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }

@@ -1,5 +1,5 @@
 // Each line in the CSV file has 4 values + 1D array piece to define one permutation of a pentomino.
-// - First value is the ID for a pentomino, from 1 to 12.
+// - First value is the ID for a pentomino, from 0 to 11.
 // - Second value is the index of the permutation (rotation, flip, etc.), between 0 to 7.
 // - Third and fourth values are the X and Y sizes respectively.
 // - The remaining values define an X*Y matrix, displaying the shape of the pentomino.

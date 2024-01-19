@@ -1,10 +1,12 @@
+use std::{collections::HashMap, thread};
+
 use super::{
     id_manager::{self, IdManager},
     state::{self, *},
 };
 
-pub fn clear_full_rows(state: &mut State, clear: &bool) {
-    if !*clear {
+pub fn clear_full_rows(state: &mut State, clear: bool) {
+    if !clear {
         return;
     };
 
@@ -15,22 +17,17 @@ pub fn clear_full_rows(state: &mut State, clear: &bool) {
             state.field.remove(i);
             state.field.insert(0, vec![EMPTY; FIELD_WIDTH as usize]);
             state.cleared_rows += 1;
-            clear_full_rows(state, &true)
+            clear_full_rows(state, true)
         } else {
-            clear_full_rows(state, &false)
+            clear_full_rows(state, false)
         }
     }
 }
 
-pub fn gravity(state: &mut State, fall: &bool, id_manager: &mut IdManager) {
-    if !*fall {
+pub fn gravity(state: &mut State, fall: bool, id_manager: &mut IdManager) {
+    if !fall {
         return;
     };
-
-    // bool for each piece id
-    let mut floating = vec![true; 256];
-
-    find_floating(state, &mut floating);
 
     // update composite_id of separated tiles
     for row in 0..FIELD_HEIGHT as usize {
@@ -45,33 +42,19 @@ pub fn gravity(state: &mut State, fall: &bool, id_manager: &mut IdManager) {
 
                     state.field[row][col] =
                         id_manager::create_composite_id(&pent_id, &new_piece_id);
-
-                    // likely not needed here, basic logic may be enough
-                    find_floating(state, &mut floating);
                 }
             }
         }
     }
 
-    // shift floating pieces down by 1 row
+    // map of composite_id to whether it's floating
+    let mut floating_ids: HashMap<u16, bool> = HashMap::new();
+
+    find_floating(state, &mut floating_ids);
+
+    // shift floating tiles down by 1 row
+    // reversed bc we want to shift the bottom-most tiles first
     for row in (0..FIELD_HEIGHT as usize).rev() {
-        for col in 0..FIELD_WIDTH as usize {
-            let tile = state.field[row][col];
-            if tile != EMPTY {
-                let piece_id = id_manager::get_piece_id(tile);
-                if floating[piece_id as usize] {
-                    state.field[row][col] = EMPTY;
-                    state.field[row + 1][col] = tile;
-
-                    gravity(state, &true, id_manager)
-                }
-            }
-        }
-    }
-}
-
-fn find_floating(state: &State, floating: &mut Vec<bool>) {
-    for row in 0..FIELD_HEIGHT as usize {
         for col in 0..FIELD_WIDTH as usize {
             let tile = state.field[row][col];
 
@@ -81,14 +64,42 @@ fn find_floating(state: &State, floating: &mut Vec<bool>) {
 
             let piece_id = id_manager::get_piece_id(tile);
 
-            if row == FIELD_HEIGHT as usize - 1 {
-                floating[piece_id as usize] = false;
-            } else {
-                let below = state.field[row + 1][col];
+            if *floating_ids.get(&tile).unwrap_or(&true) {
+                state.field[row][col] = EMPTY;
+                state.field[row + 1][col] = tile;
 
-                if below != EMPTY && below != tile {
-                    floating[piece_id as usize] = false;
-                }
+                println!("gravity: {}", state);
+                thread::sleep(std::time::Duration::from_millis(100));
+            }
+        }
+    }
+
+    gravity(state, true, id_manager)
+}
+
+fn find_floating(state: &State, floating_ids: &mut HashMap<u16, bool>) {
+    // TODO: check if reversed is better
+    for row in 0..FIELD_HEIGHT as usize {
+        for col in 0..FIELD_WIDTH as usize {
+            if state.field[row][col] == EMPTY {
+                continue;
+            }
+
+            let composite_id = state.field[row][col];
+
+            let piece_id = id_manager::get_piece_id(composite_id);
+
+            // if tile is in bottom row
+            if row == FIELD_HEIGHT as usize - 1 {
+                floating_ids.insert(composite_id, false);
+                continue;
+            }
+
+            let below = state.field[row + 1][col];
+
+            if below != EMPTY && below != composite_id {
+                floating_ids.insert(composite_id, false);
+                continue;
             }
         }
     }
@@ -118,6 +129,24 @@ fn is_connected(state: &State, row: usize, col: usize, piece_id: &u8) -> bool {
     }
 
     false
+}
+
+pub fn char_to_id(c: char) -> u8 {
+    match c {
+        'X' => 0,
+        'I' => 1,
+        'Z' => 2,
+        'T' => 3,
+        'U' => 4,
+        'V' => 5,
+        'W' => 6,
+        'Y' => 7,
+        'L' => 8,
+        'P' => 9,
+        'N' => 10,
+        'F' => 11,
+        _ => 255,
+    }
 }
 
 #[cfg(test)]
@@ -238,10 +267,10 @@ mod tests {
         println!("b4 clear {}", state);
         println!("P piece_id: {}", id_manager::get_piece_id(comp_id1));
 
-        clear_full_rows(&mut state, &true);
+        clear_full_rows(&mut state, true);
         println!("after clear {}", state);
 
-        gravity(&mut state, &true, &mut id_manager);
+        gravity(&mut state, true, &mut id_manager);
 
         println!("after gravity {}", state);
 
@@ -253,23 +282,5 @@ mod tests {
             is_connected(&state, 12, 0, &id_manager::get_piece_id(comp_id1)),
             false
         );
-    }
-}
-
-pub fn char_to_id(c: char) -> u8 {
-    match c {
-        'X' => 0,
-        'I' => 1,
-        'Z' => 2,
-        'T' => 3,
-        'U' => 4,
-        'V' => 5,
-        'W' => 6,
-        'Y' => 7,
-        'L' => 8,
-        'P' => 9,
-        'N' => 10,
-        'F' => 11,
-        _ => 255,
     }
 }

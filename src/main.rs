@@ -1,17 +1,24 @@
-mod data;
-mod logic;
-mod ui;
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
 
+use macroquad::prelude::*;
 use std::{
     thread,
     time::{Duration, Instant},
 };
 
+mod data;
+mod logic;
+mod ui;
+
 use logic::{
     bot::Bot,
+    game,
     state::{self, State},
 };
-use macroquad::prelude::*;
+
+use ui::*;
 
 fn window_conf() -> Conf {
     Conf {
@@ -31,7 +38,7 @@ async fn main() {
 
     // println!("NEXT STACK: {:?}", next_stack);
 
-    let mut best_state = State::initial_state(&next_stack);
+    let mut state = State::initial_state(&next_stack);
 
     let field1 = vec![
         vec![9, 9, state::EMPTY, state::EMPTY, state::EMPTY],
@@ -96,7 +103,7 @@ async fn main() {
     let p_composite_id = logic::id_manager::create_composite_id(&9, &0);
     let l_composite_id = logic::id_manager::create_composite_id(&8, &1);
 
-    let field2 = vec![
+    let gravity_test_field = vec![
         vec![
             p_composite_id,
             p_composite_id,
@@ -204,26 +211,23 @@ async fn main() {
         ],
     ];
 
-    // best_state.field = field2;
+    state.field = gravity_test_field;
 
     let runs = 100;
     let mut total_time = Duration::new(0, 0);
 
     for i in 0..runs {
-        // ui::field_ui::draw_field(&best_state.field);
-        // next_frame().await;
+        state.remaining_pieces = lookahead.get_next_stack();
 
-        best_state.remaining_pieces = lookahead.get_next_stack();
+        // state.remaining_pieces = vec!['P'];
 
-        // best_state.remaining_pieces = vec!['P'];
-
-        // println!("STACK: {:?}", best_state.remaining_pieces);
+        println!("STACK: {:?}", state.remaining_pieces);
 
         let start_time = Instant::now();
 
         // app hangs until heuristic_search returns
-        match Bot::heuristic_search(&best_state, &db, &mut id_manager) {
-            Some(solution) => best_state = solution,
+        match Bot::heuristic_search(&state, &db, &mut id_manager) {
+            Some(solution) => {} //state = solution,
             None => {
                 println!("No solution found");
                 break;
@@ -236,13 +240,12 @@ async fn main() {
 
         println!("run {i}: {:?}", elapsed);
 
+        println!("{}", state);
+        thread::sleep(Duration::from_millis(500));
+
+        game::gravity(&mut state, true, &mut id_manager);
+
         total_time += elapsed;
-
-        // println!("Score: {}", best_state.cleared_rows);
-
-        // logic::game::clear_full_rows(&mut best_state, &true);
-
-        // logic::game::gravity(&mut best_state, &true, &mut id_manager);
     }
 
     println!("avg: {:?}", total_time / runs);
