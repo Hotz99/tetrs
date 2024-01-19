@@ -47,16 +47,18 @@ pub fn gravity(state: &mut State, id_manager: &mut IdManager) {
     let mut floating_ids: HashMap<u16, bool> = HashMap::new();
 
     loop {
+        floating_ids.clear();
+
         find_floating(state, &mut floating_ids);
 
-        // TODO: this shit should be false at least once
+        // TODO: this expression should be false at least once
         if floating_ids.values().all(|&x| x == false) {
             break;
         }
 
         // shift floating tiles down by 1 row
         // reversed bc we want to shift the bottom-most tiles first
-        for row in (0..FIELD_HEIGHT as usize).rev() {
+        for row in (0..(FIELD_HEIGHT - 1) as usize).rev() {
             for col in 0..FIELD_WIDTH as usize {
                 let tile = state.field[row][col];
 
@@ -64,9 +66,7 @@ pub fn gravity(state: &mut State, id_manager: &mut IdManager) {
                     continue;
                 }
 
-                let piece_id = id_manager::get_piece_id(tile);
-
-                if *floating_ids.get(&tile).unwrap_or(&true) {
+                if *floating_ids.get(&tile).unwrap() {
                     state.field[row][col] = EMPTY;
                     state.field[row + 1][col] = tile;
 
@@ -92,14 +92,16 @@ fn find_floating(state: &State, floating_ids: &mut HashMap<u16, bool>) {
 
             // if tile is in bottom row
             if row == FIELD_HEIGHT as usize - 1 {
-                floating_ids.insert(composite_id, false);
                 continue;
             }
 
             let below = state.field[row + 1][col];
 
-            if below != EMPTY && below != composite_id {
-                floating_ids.insert(composite_id, false);
+            if below != composite_id {
+                if below == EMPTY {
+                    floating_ids.insert(composite_id, true);
+                }
+
                 continue;
             }
         }

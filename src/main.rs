@@ -29,8 +29,8 @@ fn window_conf() -> Conf {
     }
 }
 
-#[macroquad::main(window_conf)]
-async fn main() {
+// #[macroquad::main(window_conf)]
+fn main() {
     let mut lookahead = logic::next_shapes::NextShapes::new();
     let next_stack = Vec::with_capacity(logic::next_shapes::STACK_SIZE);
     let db = data::pentomino_db::PentominoDB::new();
