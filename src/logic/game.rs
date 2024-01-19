@@ -1,4 +1,7 @@
-use std::{collections::HashMap, thread};
+use std::{
+    collections::{HashMap, HashSet},
+    thread,
+};
 
 use super::{
     id_manager::{self, IdManager},
@@ -43,18 +46,17 @@ pub fn gravity(state: &mut State, id_manager: &mut IdManager) {
         }
     }
 
-    // map of composite_id to whether it's floating
-    let mut floating_ids: HashMap<u16, bool> = HashMap::new();
+    // non floating tiles
+    let mut settled_ids: HashSet<u16> = HashSet::new();
 
-    loop {
-        floating_ids.clear();
+    let mut shifted = true;
 
-        find_floating(state, &mut floating_ids);
+    while shifted {
+        shifted = false;
 
-        // TODO: this expression should be false at least once
-        if floating_ids.values().all(|&x| x == false) {
-            break;
-        }
+        settled_ids.clear();
+
+        find_floating(state, &mut settled_ids);
 
         // shift floating tiles down by 1 row
         // reversed bc we want to shift the bottom-most tiles first
@@ -66,9 +68,11 @@ pub fn gravity(state: &mut State, id_manager: &mut IdManager) {
                     continue;
                 }
 
-                if *floating_ids.get(&tile).unwrap() {
+                if !settled_ids.contains(&tile) {
                     state.field[row][col] = EMPTY;
                     state.field[row + 1][col] = tile;
+
+                    shifted = true;
 
                     println!("gravity: {}", state);
                     thread::sleep(std::time::Duration::from_millis(100));
@@ -78,9 +82,9 @@ pub fn gravity(state: &mut State, id_manager: &mut IdManager) {
     }
 }
 
-fn find_floating(state: &State, floating_ids: &mut HashMap<u16, bool>) {
+fn find_floating(state: &State, settled_ids: &mut HashSet<u16>) {
     // TODO: check if reversed is better
-    for row in 0..FIELD_HEIGHT as usize {
+    for row in (0..FIELD_HEIGHT as usize).rev() {
         for col in 0..FIELD_WIDTH as usize {
             if state.field[row][col] == EMPTY {
                 continue;
@@ -92,17 +96,14 @@ fn find_floating(state: &State, floating_ids: &mut HashMap<u16, bool>) {
 
             // if tile is in bottom row
             if row == FIELD_HEIGHT as usize - 1 {
+                settled_ids.insert(composite_id);
                 continue;
             }
 
             let below = state.field[row + 1][col];
 
-            if below != composite_id {
-                if below == EMPTY {
-                    floating_ids.insert(composite_id, true);
-                }
-
-                continue;
+            if below != EMPTY && below != composite_id {
+                settled_ids.insert(composite_id);
             }
         }
     }
