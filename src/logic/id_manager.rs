@@ -1,40 +1,36 @@
-pub struct IdManager {
-    id_pool: Vec<u8>,
-    next_id: u8,
-}
+pub fn next_unique_id(used_ids: &mut Vec<bool>, pent_id: &u8) -> u16 {
+    // next_id = pent_id + multiple of 12
+    let mut next_id = pent_id.clone() as u16;
 
-impl IdManager {
-    pub fn new() -> IdManager {
-        IdManager {
-            id_pool: Vec::new(),
-            next_id: 0,
+    while used_ids[next_id as usize] {
+        next_id += 12;
+    }
+
+    // if next_id is larger than 12 bits
+    if next_id & 0xF000 != 0 {
+        for i in 0..used_ids.len() {
+            used_ids[i] = false;
         }
+
+        return next_unique_id(used_ids, pent_id);
     }
 
-    pub fn next_piece_id(&mut self) -> u8 {
-        self.id_pool.pop().unwrap_or_else(|| {
-            let id = self.next_id;
-            self.next_id = self.next_id.wrapping_add(1);
-            id
-        })
-    }
+    used_ids[next_id as usize] = true;
 
-    // game::update() calls this when a piece is removed from the field to return its id to the pool
-    pub fn return_id(&mut self, id: u8) {
-        self.id_pool.push(id);
-    }
+    next_id
 }
 
-pub fn create_composite_id(pent_id: &u8, piece_id: &u8) -> u16 {
-    ((pent_id.clone() as u16) << 8) | (piece_id.clone() as u16)
+// composite_id (16 bits) = pent_id (4 bits) + unique_id (12 bits)
+pub fn create_composite_id(pent_id: &u8, unique_id: &u16) -> u16 {
+    ((pent_id.clone() as u16) << 12) | (unique_id.clone() & 0x0FFF) // extract 12 bits
 }
 
 pub fn get_pent_id(composite_id: u16) -> u8 {
-    ((composite_id >> 8) & 0xFF) as u8
+    (composite_id >> 12) as u8
 }
 
-pub fn get_piece_id(composite_id: u16) -> u8 {
-    (composite_id & 0xFF) as u8
+pub fn get_unique_id(composite_id: u16) -> u16 {
+    composite_id & 0x0FFF
 }
 
 pub fn char_to_id(c: char) -> u8 {
@@ -59,12 +55,24 @@ pub fn char_to_id(c: char) -> u8 {
 mod tests {
     use super::*;
 
+    // write a test for create_composite_id
     #[test]
-    fn test_get_piece_id() {
+    fn test_create_composite_id() {
+        for x in 0..12 {
+            for y in 0..4096 {
+                let composite_id = create_composite_id(&x, &y);
+                assert_eq!(get_pent_id(composite_id), x);
+                assert_eq!(get_unique_id(composite_id), y);
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_unique_id() {
         let composite_id = create_composite_id(&1, &2);
 
         assert_eq!(get_pent_id(composite_id), 1);
-        assert_eq!(get_piece_id(composite_id), 2);
+        assert_eq!(get_unique_id(composite_id), 2);
     }
 
     #[test]

@@ -3,7 +3,9 @@ use std::hash::{Hash, Hasher};
 use std::{fmt, thread};
 
 use super::bot::Bot;
-use super::id_manager;
+use super::{game, id_manager};
+
+pub type Field = Vec<Vec<u16>>;
 
 pub const FIELD_WIDTH: u8 = 5;
 pub const FIELD_HEIGHT: u8 = 15;
@@ -11,40 +13,26 @@ pub const EMPTY: u16 = 12;
 
 #[derive(Eq, Clone)]
 pub struct State {
-    pub field: Vec<Vec<u16>>,
-    // box to avoid recursive type
-    pub parent_state: Option<Box<State>>,
+    pub field: Field,
     pub remaining_pieces: Vec<char>,
     pub cleared_rows: u32,
+    pub used_ids: Vec<bool>,
 }
 
 impl State {
-    pub fn new(
-        field: &Vec<Vec<u16>>,
-        parent_state: Option<Box<State>>,
-        remaining_pieces: &Vec<char>,
-    ) -> State {
-        State {
-            field: field.clone(),
-            parent_state: Some(parent_state.clone().unwrap()),
-            remaining_pieces: remaining_pieces.clone(),
-            cleared_rows: parent_state.unwrap().cleared_rows,
-        }
-    }
-
     pub fn initial_state(pieces: &Vec<char>) -> State {
         State {
             field: vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize],
-            parent_state: None,
             remaining_pieces: pieces.clone(),
             cleared_rows: 0,
+            used_ids: vec![false; u16::MAX as usize],
         }
     }
 }
 
 impl fmt::Display for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Cleared: {}\n", self.cleared_rows)?;
+        writeln!(f, "cleared rows: {}", self.cleared_rows)?;
 
         // writeln!(f, "Field:");
         for row in &self.field {

@@ -14,7 +14,7 @@ mod ui;
 
 use logic::{
     bot::Bot,
-    game,
+    game, id_manager, next_shapes,
     state::{self, State},
 };
 
@@ -29,224 +29,106 @@ fn window_conf() -> Conf {
     }
 }
 
-// #[macroquad::main(window_conf)]
-fn main() {
-    let mut lookahead = logic::next_shapes::NextShapes::new();
+#[macroquad::main(window_conf)]
+
+async fn main() {
+    let delay_ms = 300;
+
+    let mut lookahead = next_shapes::NextShapes::new();
     let next_stack = Vec::with_capacity(logic::next_shapes::STACK_SIZE);
     let db = data::pentomino_db::PentominoDB::new();
-    let mut id_manager = logic::id_manager::IdManager::new();
 
     // println!("NEXT STACK: {:?}", next_stack);
-
     let mut state = State::initial_state(&next_stack);
 
-    let field1 = vec![
-        vec![9, 9, state::EMPTY, state::EMPTY, state::EMPTY],
-        vec![9, 9, state::EMPTY, state::EMPTY, state::EMPTY],
-        vec![9, state::EMPTY, state::EMPTY, state::EMPTY, state::EMPTY],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![9, 9, state::EMPTY, state::EMPTY, state::EMPTY],
-        vec![9, 9, state::EMPTY, state::EMPTY, state::EMPTY],
-        vec![9, state::EMPTY, state::EMPTY, state::EMPTY, state::EMPTY],
-        vec![1, 1, 1, 1, 1],
-        vec![1, 1, 1, 1, 1],
-    ];
+    let mut run_time = Duration::new(0, 0);
 
-    let p_composite_id = logic::id_manager::create_composite_id(&9, &0);
-    let l_composite_id = logic::id_manager::create_composite_id(&8, &1);
-
-    let gravity_test_field = vec![
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            p_composite_id,
-            p_composite_id,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            p_composite_id,
-            p_composite_id,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            p_composite_id,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            l_composite_id,
-            l_composite_id,
-            l_composite_id,
-            l_composite_id,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-        vec![
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-            state::EMPTY,
-        ],
-    ];
-
-    state.field = gravity_test_field;
-
-    let runs = 100;
-    let mut total_time = Duration::new(0, 0);
-
-    for i in 0..runs {
+    for i in 0..1000 {
         state.remaining_pieces = lookahead.get_next_stack();
-
-        // state.remaining_pieces = vec!['P'];
-
-        println!("STACK: {:?}", state.remaining_pieces);
 
         let start_time = Instant::now();
 
-        // app hangs until heuristic_search returns
-        // match Bot::heuristic_search(&state, &db, &mut id_manager) {
-        //     Some(solution) => state = solution,
-        //     None => {
-        //         println!("No solution found");
-        //         break;
-        //     }
-        // };
+        match Bot::search(state.clone(), &db) {
+            Some(solution) => {
+                state = solution;
+                println!("solution: {}", state);
+            }
+            None => {
+                println!("NO SOLUTION");
+                println!("NEXT STACK: {:?}", state.remaining_pieces);
+                println!("{}", state);
+                break;
+            }
+        };
 
         let end_time = Instant::now();
 
-        let elapsed = end_time - start_time;
+        run_time = end_time - start_time;
 
-        println!("run {i}: {:?}", elapsed);
+        println!("run {i}: {:?}", run_time);
 
-        println!("{}", state);
-        thread::sleep(Duration::from_millis(500));
-
-        game::gravity(&mut state, &mut id_manager);
-
-        total_time += elapsed;
+        game::clear_rows(&mut state);
+        ui::draw_field(&state.field);
+        next_frame().await;
+        thread::sleep(Duration::from_millis(delay_ms));
     }
+}
 
-    println!("avg: {:?}", total_time / runs);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bot() {
+        let delay_ms = 0;
+
+        let mut lookahead = logic::next_shapes::NextShapes::new();
+        let next_stack = Vec::with_capacity(logic::next_shapes::STACK_SIZE);
+        let db = data::pentomino_db::PentominoDB::new();
+
+        let runs = 10;
+        let mut total_run_time = Duration::new(0, 0);
+        let mut total_score = 0;
+        let mut failed_counter = 0;
+
+        for i in 0..runs {
+            let mut state = State::initial_state(&next_stack);
+
+            let mut run_time = Duration::new(0, 0);
+
+            for j in 0..10000 {
+                state.remaining_pieces = lookahead.get_next_stack();
+
+                let start_time = Instant::now();
+
+                match Bot::search(state, &db) {
+                    Some(solution) => {
+                        state = solution;
+                    }
+                    None => {
+                        failed_counter += 1;
+                        break;
+                    }
+                };
+
+                let end_time = Instant::now();
+
+                run_time = end_time - start_time;
+
+                println!("run {i}: {:?}", run_time);
+
+                thread::sleep(Duration::from_millis(delay_ms));
+
+                game::clear_rows(&mut state);
+
+                total_run_time += run_time;
+
+                total_score += 1;
+            }
+        }
+
+        println!("avg response: {:?}", total_run_time / runs / 100);
+        println!("avg score: {:?}", total_score / runs);
+        println!("failed runs: {:?}", failed_counter);
+    }
 }

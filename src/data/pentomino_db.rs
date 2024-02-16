@@ -30,32 +30,22 @@ impl PentominoDB {
     pub fn new() -> PentominoDB {
         let data = PentominoDB::load_pentominoes();
 
-        // Self::print_data(&data);
-
-        // print first mutation of each piece, including ID
-        // for id in 0..data.len() {
-        //     println!("ID: {}", id);
-        //     for i in 0..data[id][0].len() {
-        //         for j in 0..data[id][0][0].len() {
-        //             print!("{}", data[id][0][i][j]);
-        //         }
-        //         println!();
-        //     }
-        //     println!();
-        // }
+        // Self::print_mutations(&data);
 
         PentominoDB { data }
     }
 
-    fn print_data(data: &Vec<Vec<Vec<Vec<u8>>>>) {
-        for id in 0..data.len() {
-            for permutation in 0..data[id].len() {
-                println!("ID: {}", id);
-                println!("Permutation: {}", permutation);
+    fn print_mutations(mutations: &Vec<Vec<Vec<Vec<u8>>>>) {
+        for pent_id in 0..mutations.len() {
+            println!("{}", mutations[pent_id].len());
 
-                for y in 0..data[id][permutation][0].len() {
-                    for x in 0..data[id][permutation].len() {
-                        print!("{}", data[id][permutation][x][y]);
+            for mutation in 0..mutations[pent_id].len() {
+                println!("ID: {}", pent_id);
+                println!("Permutation: {}", mutation);
+
+                for y in 0..mutations[pent_id][mutation][0].len() {
+                    for x in 0..mutations[pent_id][mutation].len() {
+                        print!("{}", mutations[pent_id][mutation][x][y]);
                     }
                     println!();
                 }
@@ -65,10 +55,9 @@ impl PentominoDB {
     }
 
     // returns 3D vec:
-    // dimensions: 1- piece ID; 2- mutation; 3- 2D vec piece representation
+    // 1D: piece ID, 2D: mutation, 3D: 2D vec piece representation
     pub fn load_pentominoes() -> Vec<Vec<Vec<Vec<u8>>>> {
-        // 12 pentominoes, 4 permutations each
-        let mut pentominoes: Vec<Vec<Vec<Vec<u8>>>> = vec![vec![Vec::new(); 4]; 12];
+        let mut pentominoes = Vec::<Vec<Vec<Vec<u8>>>>::new();
 
         // 'include_str!':
         // small csv file, so no memory overhead
@@ -76,27 +65,29 @@ impl PentominoDB {
         let csv = include_str!("pentomino_db.csv");
 
         for line in csv.lines() {
-            let values: Vec<u8> = line.split(',').map(|s| s.parse().unwrap()).collect();
+            let mutation_data: Vec<u8> = line.split(',').map(|s| s.parse().unwrap()).collect();
 
-            let piece_id = values[0] as usize;
-            let permutation = values[1] as usize;
-            let x_size = values[2] as usize;
-            let y_size = values[3] as usize;
+            let pent_id = mutation_data[0] as usize;
+            let permutation = mutation_data[1] as usize;
+            let x_size = mutation_data[2] as usize;
+            let y_size = mutation_data[3] as usize;
 
             let mut piece = vec![vec![0u8; y_size]; x_size];
 
             // 1d array to 2d array
             for i in 0..(x_size * y_size) {
-                piece[i / y_size][i % y_size] = values[4 + i];
+                piece[i / y_size][i % y_size] = mutation_data[4 + i];
             }
 
-            pentominoes[piece_id][permutation] = piece;
-        }
+            if pent_id >= pentominoes.len() {
+                pentominoes.resize_with(pent_id + 1, Vec::new);
+            }
 
-        // remove duplicate mutations
-        for id in 0..pentominoes.len() {
-            let mut seen = HashSet::new();
-            pentominoes[id].retain(|mutation| seen.insert(mutation.clone()));
+            if permutation >= pentominoes[pent_id].len() {
+                pentominoes[pent_id].resize_with(permutation + 1, Vec::new);
+            }
+
+            pentominoes[pent_id][permutation] = piece;
         }
 
         pentominoes

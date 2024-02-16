@@ -4,7 +4,7 @@ use crate::logic::{id_manager, state};
 
 const SCALE: f32 = 40.0;
 
-pub fn draw_field(field: &Vec<Vec<u16>>) {
+pub fn draw_field(field: &state::Field) {
     clear_background(BLACK);
 
     for row in 0..field.len() {
