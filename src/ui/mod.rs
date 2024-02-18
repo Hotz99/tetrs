@@ -1,4 +1,7 @@
-use macroquad::{color::*, shapes::draw_rectangle, text::draw_text, window::clear_background};
+use macroquad::{
+    color::*, math::vec2, shapes::draw_rectangle, text::draw_text, ui::widgets,
+    window::clear_background,
+};
 
 use crate::logic::{id_manager, state};
 

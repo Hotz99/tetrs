@@ -2,14 +2,13 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::{fmt, thread};
 
-use super::bot::Bot;
 use super::{game, id_manager};
 
 pub type Field = Vec<Vec<u16>>;
 
 pub const FIELD_WIDTH: u8 = 5;
 pub const FIELD_HEIGHT: u8 = 15;
-pub const EMPTY: u16 = 12;
+pub const EMPTY: u16 = 13;
 
 #[derive(Eq, Clone)]
 pub struct State {
@@ -34,7 +33,7 @@ impl fmt::Display for State {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "cleared rows: {}", self.cleared_rows)?;
 
-        // writeln!(f, "Field:");
+        writeln!(f, "cleared:");
         for row in &self.field {
             for &tile in row {
                 if tile == EMPTY {

@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     thread,
+    time::Duration,
 };
 
 use macroquad::window::next_frame;
@@ -12,7 +13,8 @@ use super::{
     state::{self, *},
 };
 
-pub fn clear_rows(state: &mut State) -> u8 {
+// todo: clear all full rows at once, instead of 'clear one then gravity, clear one then gravity'
+pub fn simulate_clear_rows(state: &mut State) -> u8 {
     let mut cleared_rows = 0;
     let mut cleared = true;
 
@@ -37,7 +39,44 @@ pub fn clear_rows(state: &mut State) -> u8 {
     cleared_rows as u8
 }
 
-// still fucked ?
+pub async fn animate_clear_rows(state: &mut State, delay_ms: u64) -> u8 {
+    let mut cleared_rows = 0;
+    let mut cleared = true;
+
+    // initial draw
+    ui::draw_field(&state.field);
+    next_frame().await;
+    thread::sleep(Duration::from_millis(delay_ms));
+
+    while cleared {
+        cleared = false;
+
+        for row in (0..FIELD_HEIGHT).rev() {
+            if (&state.field[row as usize]).iter().all(|&x| x != EMPTY) {
+                for col in 0..FIELD_WIDTH {
+                    state.field[row as usize][col as usize] = EMPTY;
+                }
+                cleared_rows += 1;
+                cleared = true;
+
+                ui::draw_field(&state.field);
+                next_frame().await;
+                thread::sleep(Duration::from_millis(delay_ms));
+
+                gravity(state);
+
+                ui::draw_field(&state.field);
+                next_frame().await;
+                thread::sleep(Duration::from_millis(delay_ms));
+            }
+        }
+    }
+
+    state.cleared_rows += cleared_rows;
+
+    cleared_rows as u8
+}
+
 fn gravity(state: &mut State) {
     // update composite_id of separated tiles
     for row in (0..FIELD_HEIGHT).rev() {
@@ -405,7 +444,7 @@ mod tests {
     }
 
     #[test]
-    fn test_clear_rows() {
+    fn test_simulate_clear_rows() {
         let mut state = State::initial_state(&vec!['X']);
 
         let comp_id1 = id_manager::create_composite_id(&9, &0);
@@ -517,7 +556,7 @@ mod tests {
         println!("b4 clear {}", state);
         println!("P unique_id: {}", id_manager::get_unique_id(comp_id1));
 
-        clear_rows(&mut state);
+        simulate_clear_rows(&mut state);
         println!("after clear {}", state);
 
         // assert_eq!(state.field[13], vec![EMPTY; FIELD_WIDTH as usize]);
