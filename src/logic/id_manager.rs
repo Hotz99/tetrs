@@ -1,6 +1,6 @@
-pub fn next_unique_id(used_ids: &mut Vec<bool>, pent_id: &u8) -> u16 {
+pub fn next_unique_id(used_ids: &mut Vec<bool>, pent_id: u8) -> u16 {
     // next_id = pent_id + multiple of 12
-    let mut next_id = pent_id.clone() as u16;
+    let mut next_id = pent_id as u16;
 
     while used_ids[next_id as usize] {
         next_id += 12;
@@ -21,8 +21,8 @@ pub fn next_unique_id(used_ids: &mut Vec<bool>, pent_id: &u8) -> u16 {
 }
 
 // composite_id (16 bits) = pent_id (4 bits) + unique_id (12 bits)
-pub fn create_composite_id(pent_id: &u8, unique_id: &u16) -> u16 {
-    ((pent_id.clone() as u16) << 12) | (unique_id.clone() & 0x0FFF) // extract 12 bits
+pub fn create_composite_id(pent_id: u8, unique_id: u16) -> u16 {
+    ((pent_id as u16) << 12) | (unique_id & 0x0FFF) // extract 12 bits
 }
 
 pub fn get_pent_id(composite_id: u16) -> u8 {
@@ -60,7 +60,7 @@ mod tests {
     fn test_create_composite_id() {
         for x in 0..12 {
             for y in 0..4096 {
-                let composite_id = create_composite_id(&x, &y);
+                let composite_id = create_composite_id(x, y);
                 assert_eq!(get_pent_id(composite_id), x);
                 assert_eq!(get_unique_id(composite_id), y);
             }
@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn test_get_unique_id() {
-        let composite_id = create_composite_id(&1, &2);
+        let composite_id = create_composite_id(1, 2);
 
         assert_eq!(get_pent_id(composite_id), 1);
         assert_eq!(get_unique_id(composite_id), 2);

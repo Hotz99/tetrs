@@ -6,8 +6,8 @@ use super::{game, id_manager};
 
 pub type Field = Vec<Vec<u16>>;
 
-pub const FIELD_WIDTH: u8 = 5;
-pub const FIELD_HEIGHT: u8 = 15;
+pub const FIELD_WIDTH: usize = 5;
+pub const FIELD_HEIGHT: usize = 15;
 pub const EMPTY: u16 = 13;
 
 #[derive(Eq, Clone)]
@@ -21,7 +21,7 @@ pub struct State {
 impl State {
     pub fn initial_state(pieces: &Vec<char>) -> State {
         State {
-            field: vec![vec![EMPTY; FIELD_WIDTH as usize]; FIELD_HEIGHT as usize],
+            field: vec![vec![EMPTY; FIELD_WIDTH]; FIELD_HEIGHT],
             remaining_pieces: pieces.clone(),
             cleared_rows: 0,
             used_ids: vec![false; u16::MAX as usize],

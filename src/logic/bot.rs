@@ -41,6 +41,9 @@ pub fn search(initial_state: State, pent_db: &PentominoDB) -> Option<State> {
             {
                 // heuristic does not mutate the state pushed to queue, simply simulates the consequences of placing a piece
                 // child states have placed a piece without clearing
+
+                // the above comment is retarded, need to find a way to push cleared states into queue
+                // queue holds simulated states, the game mechanics must be applied
                 let heuristic = heuristic(&mut (*child_rc).clone());
                 queue.push(child_rc.clone(), heuristic);
             }
@@ -62,21 +65,21 @@ pub fn search(initial_state: State, pent_db: &PentominoDB) -> Option<State> {
 
 fn generate_states(parent_state: &State, piece: char, pent_db: &PentominoDB) -> Vec<State> {
     let mut states = Vec::new();
-    let pent_id = id_manager::char_to_id(piece);
     let mut used_ids = parent_state.used_ids.clone();
+
+    let pent_id = id_manager::char_to_id(piece);
     let composite_id = id_manager::create_composite_id(
-        &pent_id,
-        &id_manager::next_unique_id(&mut used_ids, &pent_id),
+        pent_id,
+        id_manager::next_unique_id(&mut used_ids, pent_id),
     );
 
     for mutation in &pent_db.data[pent_id as usize] {
-        // reverse order to start with bottom rows
-        for row in (0..=(state::FIELD_HEIGHT as usize - mutation.len())).rev() {
-            for col in 0..=(state::FIELD_WIDTH as usize - mutation[0].len()) {
+        for row in 0..=(state::FIELD_HEIGHT - mutation.len()) {
+            for col in 0..=(state::FIELD_WIDTH - mutation[0].len()) {
                 let mut child_field = parent_state.field.clone();
 
                 // [row][col] is top-left of 2d vec 'mutation'
-                if try_place(&mut child_field, mutation, composite_id, row, col) {
+                if can_place(&mut child_field, mutation, composite_id, row, col) {
                     let mut child_state = State {
                         field: child_field,
                         cleared_rows: parent_state.cleared_rows.clone(),
@@ -94,7 +97,7 @@ fn generate_states(parent_state: &State, piece: char, pent_db: &PentominoDB) -> 
     states
 }
 
-fn try_place(
+fn can_place(
     field: &mut Field,
     mutation: &Vec<Vec<u8>>,
     composite_id: u16,
@@ -103,7 +106,7 @@ fn try_place(
 ) -> bool {
     let mut floating_tiles = 0;
 
-    for delta_row in (0..mutation.len()).rev() {
+    for delta_row in 0..mutation.len() {
         for delta_col in 0..mutation[0].len() {
             // mutation is a 2d vec of 0s and 1s
             if mutation[delta_row][delta_col] == 0 {
@@ -141,7 +144,7 @@ fn try_place(
                 }
             }
 
-            // all tiles are floating
+            // piece is floating
             if floating_tiles >= mutation[0].len() {
                 return false;
             }
@@ -158,7 +161,7 @@ pub fn heuristic(state: &mut State) -> i32 {
     let mut score = 0;
     let mut penalize_top: i32;
 
-    let cleared_rows = game::simulate_clear_rows(state) as i32;
+    let cleared_rows = game::simulate_clear_rows(state, 0, true) as i32;
 
     score += cleared_rows ^ 4 * 9000;
 
@@ -189,7 +192,7 @@ mod tests {
     fn test_try_place() {
         let mut state = State::initial_state(&vec!['P', 'N', 'F']);
 
-        let p_composite_id = logic::id_manager::create_composite_id(&9, &0);
+        let p_composite_id = logic::id_manager::create_composite_id(9, 0);
 
         state.field = vec![
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
@@ -209,15 +212,15 @@ mod tests {
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
         ];
 
-        let x_composite_id = logic::id_manager::create_composite_id(&0, &0);
+        let x_composite_id = logic::id_manager::create_composite_id(0, 0);
         let x_piece = vec![vec![0, 1, 0], vec![1, 1, 1], vec![0, 1, 0]];
 
-        let l_composite_id = logic::id_manager::create_composite_id(&8, &0);
+        let l_composite_id = logic::id_manager::create_composite_id(8, 0);
         let l_piece = vec![vec![1, 0], vec![1, 0], vec![1, 0], vec![1, 1]];
 
         println!(
             "result: {}",
-            try_place(&mut state.field, &l_piece, l_composite_id, 8, 1)
+            can_place(&mut state.field, &l_piece, l_composite_id, 8, 1)
         );
 
         println!("{}", state);

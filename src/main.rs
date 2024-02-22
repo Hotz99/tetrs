@@ -31,42 +31,43 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    test_bot();
+    // test_bot();
 
-    // let delay_ms = 1000;
+    let delay_ms = 1000;
 
-    // let mut lookahead = next_shapes::NextShapes::new();
-    // let next_stack = Vec::with_capacity(logic::next_shapes::STACK_SIZE);
-    // let db = data::pentomino_db::PentominoDB::new();
-
-    // let mut state = State::initial_state(&next_stack);
-
-    // loop {
-    //     state.remaining_pieces = lookahead.get_next_stack();
-
-    //     match bot::search(state, &db) {
-    //         Some(solution) => {
-    //             state = solution;
-    //             println!("{}", state);
-    //         }
-    //         None => {
-    //             println!("NO SOLUTION");
-    //             break;
-    //         }
-    //     };
-
-    //     game::animate_clear_rows(&mut state, delay_ms).await;
-    // }
-}
-
-fn test_bot() {
-    let delay_ms = 0;
-
-    let mut lookahead = logic::next_shapes::NextShapes::new();
+    let mut lookahead = next_shapes::NextShapes::new();
     let next_stack = Vec::with_capacity(logic::next_shapes::STACK_SIZE);
     let db = data::pentomino_db::PentominoDB::new();
 
-    let runs = 100;
+    let mut state = State::initial_state(&next_stack);
+
+    loop {
+        state.remaining_pieces = lookahead.get_next_stack();
+
+        match bot::search(state, &db) {
+            Some(solution) => {
+                state = solution;
+
+                println!("{}", state);
+            }
+            None => {
+                println!("NO SOLUTION");
+                break;
+            }
+        };
+
+        game::simulate_clear_rows(&mut state, 0, true);
+
+        thread::sleep(Duration::from_millis(delay_ms));
+    }
+}
+
+fn test_bot() {
+    let mut lookahead = logic::next_shapes::NextShapes::new();
+    let next_stack = Vec::with_capacity(logic::next_shapes::STACK_SIZE);
+    let pent_db = data::pentomino_db::PentominoDB::new();
+
+    let runs = 10;
     let mut total_run_time = Duration::new(0, 0);
     let mut total_score = 0;
     let mut failed_counter = 0;
@@ -81,7 +82,7 @@ fn test_bot() {
 
             let start_time = Instant::now();
 
-            match bot::search(state, &db) {
+            match bot::search(state, &pent_db) {
                 Some(solution) => {
                     state = solution;
                 }
@@ -99,7 +100,7 @@ fn test_bot() {
 
             total_score += 1;
 
-            game::simulate_clear_rows(&mut state);
+            game::simulate_clear_rows(&mut state, 0, true);
         }
 
         println!("run {i}: {:?}", run_time);
