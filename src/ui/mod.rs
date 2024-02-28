@@ -3,7 +3,7 @@ use macroquad::{
     window::clear_background,
 };
 
-use crate::logic::{id_manager, state};
+use crate::logic::{game, id_manager, state};
 
 const SCALE: f32 = 40.0;
 
@@ -21,7 +21,7 @@ pub fn draw_field(field: &state::Field) {
                     y,
                     SCALE - 1.0,
                     SCALE - 1.0,
-                    get_color(id_manager::get_pent_id(field[row][col])),
+                    get_color(game::get_pent_id(field[row][col])),
                 );
 
                 draw_text(

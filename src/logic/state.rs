@@ -1,8 +1,10 @@
+use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 use std::{fmt, thread};
 
-use super::{game, id_manager};
+use super::{game, id_manager, next_shapes};
 
 pub type Field = Vec<Vec<u16>>;
 
@@ -12,19 +14,21 @@ pub const EMPTY: u16 = 13;
 
 #[derive(Eq, Clone)]
 pub struct State {
+    pub parent_state: Option<Rc<State>>,
+    pub uncleared_state: Option<Box<State>>,
     pub field: Field,
     pub remaining_pieces: Vec<char>,
     pub cleared_rows: u32,
-    pub used_ids: Vec<bool>,
 }
 
 impl State {
-    pub fn initial_state(pieces: &Vec<char>) -> State {
+    pub fn initial_state() -> State {
         State {
+            parent_state: None,
+            uncleared_state: None,
             field: vec![vec![EMPTY; FIELD_WIDTH]; FIELD_HEIGHT],
-            remaining_pieces: pieces.clone(),
+            remaining_pieces: Vec::with_capacity(next_shapes::STACK_SIZE),
             cleared_rows: 0,
-            used_ids: vec![false; u16::MAX as usize],
         }
     }
 }
@@ -41,7 +45,7 @@ impl fmt::Display for State {
                     continue;
                 }
 
-                let symbol = match id_manager::get_pent_id(tile) {
+                let symbol = match game::get_pent_id(tile) {
                     0 => 'X',
                     1 => 'I',
                     2 => 'Z',
@@ -67,7 +71,7 @@ impl fmt::Display for State {
 
 impl Hash for State {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for &piece in &self.remaining_pieces {
+        for piece in &self.remaining_pieces {
             piece.hash(state);
         }
 
