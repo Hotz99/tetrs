@@ -33,31 +33,31 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    // test_bot();
+    test_bot();
 
-    let delay_ms = 500;
+    // let delay_ms = 500;
 
-    let mut lookahead = next_shapes::NextShapes::new();
-    let db = data::pentomino_db::PentominoDB::new();
-    let mut id_manager = id_manager::IdManager::new();
+    // let mut lookahead = next_shapes::NextShapes::new();
+    // let db = data::pentomino_db::PentominoDB::new();
+    // let mut id_manager = id_manager::IdManager::new();
 
-    let mut state = State::initial_state();
+    // let mut state = State::initial_state();
 
-    loop {
-        state.remaining_pieces = lookahead.get_next_stack();
+    // loop {
+    //     state.remaining_pieces = lookahead.get_next_stack();
 
-        match bot::search(state, &db, &mut id_manager) {
-            Some(solution) => {
-                state = solution;
-            }
-            None => {
-                println!("NO SOLUTION");
-                break;
-            }
-        };
+    //     match bot::search(state, &db, &mut id_manager) {
+    //         Some(solution) => {
+    //             state = solution;
+    //         }
+    //         None => {
+    //             println!("NO SOLUTION");
+    //             break;
+    //         }
+    //     };
 
-        game::clear_rows(&mut state, &mut id_manager, 0, true, true, delay_ms);
-    }
+    //     game::clear_rows(&mut state, &mut id_manager, 0, true, true, delay_ms);
+    // }
 }
 
 fn test_bot() {

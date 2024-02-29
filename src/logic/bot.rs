@@ -33,7 +33,7 @@ pub fn search(
         let (current_state, _) = queue.pop()?;
 
         if current_state.remaining_pieces.is_empty() {
-            // return N-1 parent states, where N is the stack size in next_shapes
+            // return N-1 parent states, where N is next_shapes::STACK_SIZE
             let final_state = current_state
                 .as_ref()
                 .clone()
@@ -55,7 +55,7 @@ pub fn search(
 
         let piece_to_place = current_state.as_ref().remaining_pieces[0];
 
-        // generate_states() will only clone into uncleared_state if first generation
+        // generate_states() will only clone() into uncleared_state if is_first_generation
         let is_first_generation =
             current_state.as_ref().remaining_pieces.len() == next_shapes::STACK_SIZE;
 
