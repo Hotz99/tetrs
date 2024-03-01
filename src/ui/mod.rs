@@ -1,55 +1,77 @@
-use macroquad::{
-    color::*, math::vec2, shapes::draw_rectangle, text::draw_text, ui::widgets,
-    window::clear_background,
+use egui::{Color32, Pos2, Stroke, Vec2};
+
+use crate::logic::{
+    game, id_manager,
+    state::{self},
 };
 
-use crate::logic::{game, id_manager, state};
+pub const SCALE: f32 = 40.0;
 
-const SCALE: f32 = 40.0;
+pub fn draw_game_field(ui: &mut egui::Ui, field: &state::Field) {
+    let (response, painter) = ui.allocate_painter(
+        Vec2::new(
+            state::FIELD_WIDTH as f32 * SCALE,
+            state::FIELD_HEIGHT as f32 * SCALE,
+        ),
+        egui::Sense::hover(),
+    );
 
-pub fn draw_field(field: &state::Field) {
-    clear_background(BLACK);
+    // draw area
+    let rect = response.rect;
 
-    for row in 0..field.len() {
-        for col in 0..field[0].len() {
-            if field[row][col] != state::EMPTY {
-                let x = col as f32 * SCALE;
-                let y = row as f32 * SCALE;
+    // draw horizontal lines
+    for col in 0..=state::FIELD_WIDTH {
+        let x = rect.left() + col as f32 * SCALE;
 
-                draw_rectangle(
-                    x,
-                    y,
-                    SCALE - 1.0,
-                    SCALE - 1.0,
-                    get_color(game::get_pent_id(field[row][col])),
-                );
+        painter.line_segment(
+            [Pos2::new(x, rect.top()), Pos2::new(x, rect.bottom())],
+            Stroke::new(1.0, Color32::LIGHT_GRAY),
+        );
+    }
 
-                draw_text(
-                    &field[row][col].to_string(),
-                    x + SCALE / 14.0,
-                    y + SCALE / 2.0,
-                    SCALE / 2.0,
-                    WHITE,
-                );
-            }
+    // draw vertical lines
+    for row in 0..=state::FIELD_HEIGHT {
+        let y = rect.top() + row as f32 * SCALE;
+
+        painter.line_segment(
+            [Pos2::new(rect.left(), y), Pos2::new(rect.right(), y)],
+            Stroke::new(1.0, Color32::LIGHT_GRAY),
+        );
+    }
+
+    // draw pentominoes
+    for row in 0..state::FIELD_HEIGHT {
+        for col in 0..state::FIELD_WIDTH {
+            let color = get_pent_id_color(game::get_pent_id(field[row][col]));
+            let x = rect.left() + col as f32 * SCALE;
+            let y = rect.top() + row as f32 * SCALE;
+
+            painter.rect_filled(
+                egui::Rect::from_min_max(
+                    Pos2::new(x, y),
+                    Pos2::new(x + SCALE - 1.0, y + SCALE - 1.0),
+                ),
+                0.0,
+                color,
+            );
         }
     }
 }
 
-fn get_color(i: u8) -> Color {
-    match i {
-        0 => BLUE,
-        1 => ORANGE,
-        2 => SKYBLUE,
-        3 => GREEN,
-        4 => MAGENTA,
-        5 => PINK,
-        6 => RED,
-        7 => YELLOW,
-        8 => PURPLE,
-        9 => Color::new(0.0, 0.0, 0.39, 1.0),  // Dark Blue
-        10 => Color::new(0.39, 0.0, 0.0, 1.0), // Dark Red
-        11 => Color::new(0.0, 0.39, 0.0, 1.0), // Dark Green
-        _ => LIGHTGRAY,
+fn get_pent_id_color(pent_id: u8) -> Color32 {
+    match pent_id {
+        0 => Color32::BLUE,
+        1 => Color32::from_rgb(255, 165, 0),   // orange
+        2 => Color32::from_rgb(135, 206, 235), // sky blue
+        3 => Color32::GREEN,
+        4 => Color32::from_rgb(255, 0, 255),   // magenta
+        5 => Color32::from_rgb(255, 192, 203), // pink
+        6 => Color32::RED,
+        7 => Color32::YELLOW,
+        8 => Color32::from_rgb(128, 0, 128), // purple
+        9 => Color32::from_rgb(0, 0, 100),   // dark blue
+        10 => Color32::from_rgb(100, 0, 0),  // dark red
+        11 => Color32::from_rgb(0, 100, 0),  // dark green
+        _ => Color32::LIGHT_GRAY,
     }
 }

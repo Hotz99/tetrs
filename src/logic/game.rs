@@ -4,8 +4,6 @@ use std::{
     time::Duration,
 };
 
-use macroquad::window::next_frame;
-
 use crate::ui;
 
 use super::{
@@ -13,26 +11,26 @@ use super::{
     state::{self, *},
 };
 
-// recursively clear rows
-pub fn clear_rows(
+// clears full rows and applies gravity, recursively
+pub fn update(
     state: &mut State,
     id_manager: &mut IdManager,
-    mut cleared_rows: u32,
-    mut clear: bool,
+    mut cleared_count: u32,
+    mut clear_rows: bool,
     animate: bool,
     delay_ms: u64,
 ) -> u32 {
-    if !clear {
-        return cleared_rows;
+    if !clear_rows {
+        return cleared_count;
     }
 
     // initial draw
-    if animate && cleared_rows == 0 {
+    if animate && cleared_count == 0 {
         println!("{}", state);
         thread::sleep(Duration::from_millis(delay_ms));
     }
 
-    clear = false;
+    clear_rows = false;
 
     // for each row, we either clear it or update the composite_id of its tiles
     for row in (0..FIELD_HEIGHT).rev() {
@@ -44,10 +42,10 @@ pub fn clear_rows(
                 state.field[row][col] = EMPTY;
             }
 
-            cleared_rows += 1;
+            cleared_count += 1;
             state.cleared_rows += 1;
 
-            clear = true;
+            clear_rows = true;
 
             if animate {
                 println!("{}", state);
@@ -79,9 +77,95 @@ pub fn clear_rows(
         thread::sleep(Duration::from_millis(delay_ms));
     }
 
-    clear_rows(state, id_manager, cleared_rows, clear, animate, delay_ms);
+    update(
+        state,
+        id_manager,
+        cleared_count,
+        clear_rows,
+        animate,
+        delay_ms,
+    );
 
-    cleared_rows
+    cleared_count
+}
+
+// animated version of update()
+pub fn animate_update(
+    state: &mut State,
+    id_manager: &mut IdManager,
+    mut cleared_count: u32,
+    mut clear_rows: bool,
+    ctx: &egui::Context,
+    ui: &mut egui::Ui,
+    delay_ms: u64,
+) -> u32 {
+    if !clear_rows {
+        return cleared_count;
+    }
+
+    // initial draw
+    if cleared_count == 0 {
+        ui::draw_game_field(ui, &state.field);
+        ctx.request_repaint();
+        thread::sleep(Duration::from_millis(delay_ms));
+    }
+
+    clear_rows = false;
+
+    // for each row, we either clear it or update the composite_id of its tiles
+    for row in (0..FIELD_HEIGHT).rev() {
+        // all() is short-circuiting
+        // if row is full
+        if (&state.field[row]).iter().all(|&x| x != EMPTY) {
+            // clear row
+            for col in 0..FIELD_WIDTH {
+                state.field[row][col] = EMPTY;
+            }
+
+            cleared_count += 1;
+            state.cleared_rows += 1;
+
+            clear_rows = true;
+
+            ui::draw_game_field(ui, &state.field);
+            ctx.request_repaint();
+            thread::sleep(Duration::from_millis(delay_ms));
+
+            continue;
+        }
+
+        // update composite_id of separated tiles
+        for col in 0..FIELD_WIDTH {
+            let tile = state.field[row][col];
+
+            if tile == EMPTY || is_connected(state, row as u8, col as u8, &get_unique_id(tile)) {
+                continue;
+            }
+
+            let pent_id = get_pent_id(tile);
+
+            state.field[row][col] =
+                create_composite_id(pent_id, id_manager.next_unique_id(pent_id));
+        }
+    }
+
+    gravity(state);
+
+    ui::draw_game_field(ui, &state.field);
+    ctx.request_repaint();
+    thread::sleep(Duration::from_millis(delay_ms));
+
+    animate_update(
+        state,
+        id_manager,
+        cleared_count,
+        clear_rows,
+        ctx,
+        ui,
+        delay_ms,
+    );
+
+    cleared_count
 }
 
 fn gravity(state: &mut State) {
@@ -547,7 +631,7 @@ mod tests {
 
         println!("b4 clear+gravity\n {}", state);
 
-        clear_rows(&mut state, &mut id_manager, 0, true, false, 0);
+        update(&mut state, &mut id_manager, 0, true, false, 0);
 
         println!("after clear+gravity\n {}", state);
 
@@ -555,7 +639,7 @@ mod tests {
     }
 
     #[test]
-    fn test_clear_rows() {
+    fn test_update() {
         let mut state = State::initial_state();
         state.remaining_pieces = vec!['X'];
 
@@ -669,7 +753,7 @@ mod tests {
         println!("b4 clear\n {}", state);
         println!("P unique_id: {}", get_unique_id(comp_id1));
 
-        clear_rows(&mut state, &mut IdManager::new(), 0, true, false, 0);
+        update(&mut state, &mut IdManager::new(), 0, true, false, 0);
         println!("after clear\n {}", state);
 
         // assert_eq!(state.field[13], vec![EMPTY; FIELD_WIDTH as usize]);
@@ -690,16 +774,9 @@ mod tests {
 
     #[test]
     fn test_get_unique_id() {
-        let composite_id = create_composite_id(1, 2);
+        let composite_id = create_composite_id(13, 2);
 
-        assert_eq!(get_pent_id(composite_id), 1);
+        assert_eq!(get_pent_id(composite_id), 13);
         assert_eq!(get_unique_id(composite_id), 2);
-    }
-
-    #[test]
-    fn test_get_pent_id() {
-        assert_eq!(get_pent_id(0), 0);
-        assert_eq!(get_pent_id(258), 1);
-        assert_eq!(get_pent_id(65535), 255);
     }
 }

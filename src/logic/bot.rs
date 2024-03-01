@@ -204,7 +204,7 @@ pub fn heuristic(state: &mut State, id_manager: &mut IdManager) -> i32 {
     let mut score = 0;
     let mut penalize_top: i32;
 
-    let cleared_rows = game::clear_rows(state, id_manager, 0, true, false, 0) as i32;
+    let cleared_rows = game::update(state, id_manager, 0, true, false, 0) as i32;
 
     score += cleared_rows ^ 4 * 9000;
 
@@ -226,7 +226,6 @@ pub fn heuristic(state: &mut State, id_manager: &mut IdManager) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::logic;
 
     use super::*;
     use state::EMPTY;
