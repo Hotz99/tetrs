@@ -1,8 +1,17 @@
-use std::time::{Duration, Instant};
+use std::{
+    collections::VecDeque,
+    thread,
+    time::{Duration, Instant},
+};
 
 use crate::{
     data::pentomino_db::PentominoDB,
-    logic::{bot, game, id_manager::IdManager, next_shapes::NextShapes, state::State},
+    logic::{
+        bot, game,
+        id_manager::IdManager,
+        next_shapes::NextShapes,
+        state::{Field, State},
+    },
     ui,
 };
 
@@ -11,16 +20,58 @@ pub struct App {
     id_manager: IdManager,
     lookahead: NextShapes,
     pent_db: PentominoDB,
-    delay_ms: u64,
+    delay_ms: u16,
+    frames: VecDeque<Field>,
+    current_frame: Option<Field>,
+    last_frame_time: Instant,
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
+        if self.frames.is_empty() {
+            let start_time = Instant::now();
+
             self.bot_search();
 
-            game::animate_update(&mut self.state, &mut self.id_manager, 0, true, ctx, ui, 500)
+            println!("search time: {:?}", Instant::now() - start_time);
+
+            game::animate_update(
+                &mut self.state,
+                &mut self.id_manager,
+                0,
+                true,
+                &mut self.frames,
+            );
+
+            // TODO: remove duplicates for VecDeque
+            // self.frames.dedup_by(|x, y| x == y);
+
+            println!("frame count: {}", self.frames.len());
+
+            self.current_frame = self.frames.pop_front();
+            self.last_frame_time = Instant::now();
+        }
+
+        let now = Instant::now();
+
+        // if delay_ms time has passed, update current_frame
+        if now.duration_since(self.last_frame_time).as_millis() >= self.delay_ms as u128 {
+            self.last_frame_time = now;
+            self.current_frame = self.frames.pop_front();
+
+            println!("tickj")
+        }
+
+        // let mut foo_state = State::initial_state();
+        // foo_state.field = self.current_frame.clone().unwrap();
+
+        // println!("{}", foo_state);
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui::draw_game_field(ui, &self.current_frame.as_ref().unwrap());
         });
+
+        ctx.request_repaint();
     }
 }
 
@@ -32,6 +83,9 @@ impl App {
             lookahead: NextShapes::new(),
             pent_db: PentominoDB::new(),
             delay_ms: 500,
+            frames: VecDeque::new(),
+            current_frame: Some(Field::new()),
+            last_frame_time: Instant::now(),
         }
     }
 

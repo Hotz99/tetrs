@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     thread,
     time::Duration,
 };
@@ -90,24 +90,21 @@ pub fn update(
 }
 
 // animated version of update()
+// returns a vector of Fields to be drawn, as animation frames
 pub fn animate_update(
     state: &mut State,
     id_manager: &mut IdManager,
     mut cleared_count: u32,
     mut clear_rows: bool,
-    ctx: &egui::Context,
-    ui: &mut egui::Ui,
-    delay_ms: u64,
+    frames: &mut VecDeque<Field>,
 ) -> u32 {
     if !clear_rows {
         return cleared_count;
     }
 
-    // initial draw
+    // initial frame
     if cleared_count == 0 {
-        ui::draw_game_field(ui, &state.field);
-        ctx.request_repaint();
-        thread::sleep(Duration::from_millis(delay_ms));
+        frames.push_back(state.field.clone());
     }
 
     clear_rows = false;
@@ -127,9 +124,7 @@ pub fn animate_update(
 
             clear_rows = true;
 
-            ui::draw_game_field(ui, &state.field);
-            ctx.request_repaint();
-            thread::sleep(Duration::from_millis(delay_ms));
+            frames.push_back(state.field.clone());
 
             continue;
         }
@@ -151,27 +146,18 @@ pub fn animate_update(
 
     gravity(state);
 
-    ui::draw_game_field(ui, &state.field);
-    ctx.request_repaint();
-    thread::sleep(Duration::from_millis(delay_ms));
+    frames.push_back(state.field.clone());
 
-    animate_update(
-        state,
-        id_manager,
-        cleared_count,
-        clear_rows,
-        ctx,
-        ui,
-        delay_ms,
-    );
+    animate_update(state, id_manager, cleared_count, clear_rows, frames);
 
     cleared_count
 }
 
 fn gravity(state: &mut State) {
     // if one tile is settled, so will the rest of the tiles that make up the piece
-    // where a tile is an entry in the 2d vec (game field),
+    // where a tile is an entry in a 2d vec (game field),
     // tiles of the same piece have the same composite_id
+
     let mut settled_ids: HashSet<u16> = HashSet::new();
     let mut possible_shifts: Vec<(usize, usize)> = Vec::new();
 
