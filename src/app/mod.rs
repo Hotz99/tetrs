@@ -180,20 +180,21 @@ impl App {
             println!("run {}: {:?}", (i + 1), run_time);
         }
 
-        println!(
-            "\ntotal solutions: {:?}",
-            (runs * searches) - failed_counter
-        );
-        println!("failed searches: {:?}", failed_counter);
-        println!(
-            "solutions per second: {:.2}",
-            (runs * searches) as f64 / total_run_time.as_secs_f64()
-        );
-        println!("\navg run time: {:?}", total_run_time / runs);
+        let total_solutions = (runs * searches) - failed_counter;
+
+        println!("\ntotal solutions: {:?}", total_solutions);
         println!(
             "avg solution time: {:?}",
-            total_solution_time / (runs * searches)
+            total_solution_time / total_solutions
         );
-        println!("avg score: {:?}", total_score / runs);
+        println!(
+            "solutions per second: {:.2}",
+            total_solutions as f64 / total_run_time.as_secs_f64()
+        );
+
+        println!("\navg run time: {:?}", total_run_time / runs);
+        println!("avg run score: {:?}", total_score / runs);
+
+        println!("failed searches: {:?}", failed_counter);
     }
 }
