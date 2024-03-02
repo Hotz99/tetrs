@@ -18,7 +18,7 @@ mod ui;
 use app::App;
 use logic::{
     bot, game, id_manager, next_shapes,
-    state::{self, State},
+    state::{self, GameState},
 };
 
 use ui::*;
@@ -29,10 +29,7 @@ use egui::{Color32, Pos2, Stroke, Vec2};
 
 fn main() {
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size(Vec2::new(
-            state::FIELD_WIDTH as f32 * ui::SCALE,
-            state::FIELD_HEIGHT as f32 * ui::SCALE,
-        )),
+        viewport: egui::ViewportBuilder::default().with_inner_size(Vec2::new(445.0, 615.0)),
         ..Default::default()
     };
 

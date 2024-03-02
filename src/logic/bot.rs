@@ -13,14 +13,14 @@ use super::{
     game,
     id_manager::{self, IdManager},
     next_shapes::{self, STACK_SIZE},
-    state::{self, Field, State},
+    state::{self, Field, GameState},
 };
 
 pub fn search(
-    initial_state: State,
+    initial_state: GameState,
     pent_db: &PentominoDB,
     id_manager: &mut IdManager,
-) -> Option<State> {
+) -> Option<GameState> {
     let mut queue = PriorityQueue::new();
     let mut visited = HashSet::new();
 
@@ -79,12 +79,12 @@ pub fn search(
 }
 
 fn generate_states(
-    parent_state_rc: Rc<State>,
+    parent_state_rc: Rc<GameState>,
     piece: char,
     pent_db: &PentominoDB,
     id_manager: &mut id_manager::IdManager,
     is_first_generation: bool,
-) -> Vec<State> {
+) -> Vec<GameState> {
     let mut states = Vec::new();
 
     let pent_id = game::char_to_id(piece);
@@ -95,7 +95,7 @@ fn generate_states(
             for col in 0..=(state::FIELD_WIDTH - mutation[0].len()) {
                 // [row][col] is top-left of 2d vec 'mutation'
                 if can_place(parent_state_rc.field.as_ref(), mutation, row, col) {
-                    let mut child_state = State {
+                    let mut child_state = GameState {
                         parent_state: Some(Rc::clone(&parent_state_rc)),
                         uncleared_state: None,
                         field: place_piece(
@@ -200,11 +200,11 @@ fn place_piece(
     field
 }
 
-pub fn heuristic(state: &mut State, id_manager: &mut IdManager) -> i32 {
+pub fn heuristic(state: &mut GameState, id_manager: &mut IdManager) -> i32 {
     let mut score = 0;
     let mut penalize_top: i32;
 
-    let cleared_rows = game::update(state, id_manager, 0, true, false, 0) as i32;
+    let cleared_rows = game::update(state, id_manager, 0, true) as i32;
 
     score += cleared_rows ^ 4 * 9000;
 
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_try_place() {
-        let mut state = State::initial_state();
+        let mut state = GameState::initial_game_state();
 
         state.remaining_pieces = vec!['P', 'N', 'F'];
 
@@ -269,7 +269,7 @@ mod tests {
 
     #[test]
     fn test_heuristic() {
-        let mut state_a = State::initial_state();
+        let mut state_a = GameState::initial_game_state();
 
         state_a.remaining_pieces = vec!['X', 'I', 'Z', 'T', 'U'];
 
@@ -291,7 +291,7 @@ mod tests {
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
         ];
 
-        let mut state_b = State::initial_state();
+        let mut state_b = GameState::initial_game_state();
 
         state_b.remaining_pieces = vec!['X', 'I', 'Z', 'T', 'U'];
 

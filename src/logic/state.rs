@@ -13,17 +13,17 @@ pub const FIELD_HEIGHT: usize = 15;
 pub const EMPTY: u16 = 13;
 
 #[derive(Eq, Clone)]
-pub struct State {
-    pub parent_state: Option<Rc<State>>,
-    pub uncleared_state: Option<Box<State>>,
+pub struct GameState {
+    pub parent_state: Option<Rc<GameState>>,
+    pub uncleared_state: Option<Box<GameState>>,
     pub field: Field,
     pub remaining_pieces: Vec<char>,
     pub cleared_rows: u32,
 }
 
-impl State {
-    pub fn initial_state() -> State {
-        State {
+impl GameState {
+    pub fn initial_game_state() -> GameState {
+        GameState {
             parent_state: None,
             uncleared_state: None,
             field: vec![vec![EMPTY; FIELD_WIDTH]; FIELD_HEIGHT],
@@ -33,7 +33,7 @@ impl State {
     }
 }
 
-impl fmt::Display for State {
+impl fmt::Display for GameState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "cleared rows: {}", self.cleared_rows)?;
 
@@ -69,7 +69,7 @@ impl fmt::Display for State {
     }
 }
 
-impl Hash for State {
+impl Hash for GameState {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for piece in &self.remaining_pieces {
             piece.hash(state);
@@ -83,7 +83,7 @@ impl Hash for State {
     }
 }
 
-impl PartialEq for State {
+impl PartialEq for GameState {
     fn eq(&self, other: &Self) -> bool {
         self.field == other.field && self.remaining_pieces == other.remaining_pieces
     }

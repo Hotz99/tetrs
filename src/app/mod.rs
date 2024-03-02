@@ -10,13 +10,13 @@ use crate::{
         bot, game,
         id_manager::IdManager,
         next_shapes::NextShapes,
-        state::{Field, State},
+        state::{Field, GameState},
     },
     ui,
 };
 
 pub struct App {
-    state: State,
+    game_state: GameState,
     id_manager: IdManager,
     lookahead: NextShapes,
     pent_db: PentominoDB,
@@ -24,6 +24,9 @@ pub struct App {
     frames: VecDeque<Field>,
     current_frame: Option<Field>,
     last_frame_time: Instant,
+    solution_times: VecDeque<Duration>,
+    avg_solution_time: Duration,
+    is_bot_paused: bool,
 }
 
 impl eframe::App for App {
@@ -33,10 +36,8 @@ impl eframe::App for App {
 
             self.bot_search();
 
-            println!("search time: {:?}", Instant::now() - start_time);
-
             game::animate_update(
-                &mut self.state,
+                &mut self.game_state,
                 &mut self.id_manager,
                 0,
                 true,
@@ -46,29 +47,58 @@ impl eframe::App for App {
             // TODO: remove duplicates for VecDeque
             // self.frames.dedup_by(|x, y| x == y);
 
-            println!("frame count: {}", self.frames.len());
-
             self.current_frame = self.frames.pop_front();
             self.last_frame_time = Instant::now();
+            self.solution_times.push_back(Instant::now() - start_time);
+
+            if self.solution_times.len() > 10 {
+                self.solution_times.pop_front();
+            }
         }
 
         let now = Instant::now();
 
         // if delay_ms time has passed, update current_frame
-        if now.duration_since(self.last_frame_time).as_millis() >= self.delay_ms as u128 {
+        if now.duration_since(self.last_frame_time).as_millis() as u16 >= self.delay_ms {
             self.last_frame_time = now;
-            self.current_frame = self.frames.pop_front();
 
-            println!("tickj")
+            if !self.is_bot_paused {
+                self.current_frame = self.frames.pop_front();
+                self.avg_solution_time =
+                    self.solution_times.iter().sum::<Duration>() / self.solution_times.len() as u32;
+            }
         }
 
-        // let mut foo_state = State::initial_state();
-        // foo_state.field = self.current_frame.clone().unwrap();
-
-        // println!("{}", foo_state);
-
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui::draw_game_field(ui, &self.current_frame.as_ref().unwrap());
+            ui.horizontal(|ui| {
+                // left side
+                ui::draw_game_field(ui, self.current_frame.as_ref().unwrap());
+
+                // right side
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Delay (ms): ");
+                        ui.add(egui::Slider::new(&mut self.delay_ms, 0..=1000).logarithmic(true));
+                    });
+
+                    ui.add_space(20.0);
+
+                    ui.label(format!("Cleared rows:  {}", self.game_state.cleared_rows));
+
+                    ui.add_space(20.0);
+
+                    ui.label(format!(
+                        "Avg solution time:  {:.3} ms",
+                        self.avg_solution_time.as_secs_f64() * 1000.0
+                    ));
+
+                    ui.add_space(20.0);
+
+                    if ui.button("Pause | Continue").clicked() {
+                        self.is_bot_paused = !self.is_bot_paused;
+                    }
+                });
+            });
         });
 
         ctx.request_repaint();
@@ -78,24 +108,26 @@ impl eframe::App for App {
 impl App {
     pub fn new() -> Self {
         Self {
-            state: State::initial_state(),
+            game_state: GameState::initial_game_state(),
             id_manager: IdManager::new(),
             lookahead: NextShapes::new(),
             pent_db: PentominoDB::new(),
-            delay_ms: 500,
+            delay_ms: 300,
             frames: VecDeque::new(),
             current_frame: Some(Field::new()),
             last_frame_time: Instant::now(),
+            solution_times: VecDeque::new(),
+            avg_solution_time: Duration::new(0, 0),
+            is_bot_paused: false,
         }
     }
 
     fn bot_search(&mut self) {
-        self.state.remaining_pieces = self.lookahead.get_next_stack();
+        self.game_state.remaining_pieces = self.lookahead.get_next_stack();
 
-        match bot::search(self.state.clone(), &self.pent_db, &mut self.id_manager) {
+        match bot::search(self.game_state.clone(), &self.pent_db, &mut self.id_manager) {
             Some(solution) => {
-                self.state = solution;
-                println!("SOLUTION FOUND");
+                self.game_state = solution;
             }
             None => {
                 println!("NO SOLUTION");
@@ -112,7 +144,7 @@ impl App {
         let mut failed_counter = 0;
 
         for i in 0..runs {
-            let mut state = State::initial_state();
+            let mut state = GameState::initial_game_state();
 
             let mut run_time = Duration::new(0, 0);
             let run_start = Instant::now();
@@ -137,7 +169,7 @@ impl App {
                     }
                 };
 
-                game::update(&mut state, &mut self.id_manager, 0, true, false, 0);
+                game::update(&mut state, &mut self.id_manager, 0, true);
             }
 
             let run_end = Instant::now();

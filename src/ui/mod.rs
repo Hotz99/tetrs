@@ -16,62 +16,51 @@ pub fn draw_game_field(ui: &mut egui::Ui, field: &state::Field) {
         egui::Sense::hover(),
     );
 
-    // draw area
-    let rect = response.rect;
+    let draw_area = response.rect;
 
-    // draw horizontal lines
-    for col in 0..=state::FIELD_WIDTH {
-        let x = rect.left() + col as f32 * SCALE;
-
-        painter.line_segment(
-            [Pos2::new(x, rect.top()), Pos2::new(x, rect.bottom())],
-            Stroke::new(1.0, Color32::LIGHT_GRAY),
-        );
-    }
-
-    // draw vertical lines
-    for row in 0..=state::FIELD_HEIGHT {
-        let y = rect.top() + row as f32 * SCALE;
-
-        painter.line_segment(
-            [Pos2::new(rect.left(), y), Pos2::new(rect.right(), y)],
-            Stroke::new(1.0, Color32::LIGHT_GRAY),
-        );
-    }
+    painter.rect_stroke(draw_area, 0.0, Stroke::new(4.0, Color32::WHITE));
 
     // draw pentominoes
     for row in 0..state::FIELD_HEIGHT {
         for col in 0..state::FIELD_WIDTH {
-            let color = get_pent_id_color(game::get_pent_id(field[row][col]));
-            let x = rect.left() + col as f32 * SCALE;
-            let y = rect.top() + row as f32 * SCALE;
+            let tile = field[row][col];
+
+            if tile == state::EMPTY {
+                continue;
+            }
+
+            let color = get_pent_color(game::get_pent_id(tile));
+            let spacing = 3.0;
+
+            let x = draw_area.left() + col as f32 * SCALE;
+            let y = draw_area.top() + row as f32 * SCALE;
 
             painter.rect_filled(
                 egui::Rect::from_min_max(
-                    Pos2::new(x, y),
-                    Pos2::new(x + SCALE - 1.0, y + SCALE - 1.0),
+                    Pos2::new(x + (spacing / 2.0), y + (spacing / 2.0)),
+                    Pos2::new(x + SCALE - (spacing / 2.0), y + SCALE - (spacing / 2.0)),
                 ),
-                0.0,
+                6.0,
                 color,
             );
         }
     }
 }
 
-fn get_pent_id_color(pent_id: u8) -> Color32 {
-    match pent_id {
-        0 => Color32::BLUE,
-        1 => Color32::from_rgb(255, 165, 0),   // orange
-        2 => Color32::from_rgb(135, 206, 235), // sky blue
-        3 => Color32::GREEN,
-        4 => Color32::from_rgb(255, 0, 255),   // magenta
-        5 => Color32::from_rgb(255, 192, 203), // pink
-        6 => Color32::RED,
-        7 => Color32::YELLOW,
-        8 => Color32::from_rgb(128, 0, 128), // purple
-        9 => Color32::from_rgb(0, 0, 100),   // dark blue
-        10 => Color32::from_rgb(100, 0, 0),  // dark red
-        11 => Color32::from_rgb(0, 100, 0),  // dark green
-        _ => Color32::LIGHT_GRAY,
+fn get_pent_color(i: u8) -> egui::Color32 {
+    match i {
+        0 => egui::Color32::from_rgb(0, 0, 255),      // bright blue
+        1 => egui::Color32::from_rgb(255, 165, 0),    // bright orange
+        2 => egui::Color32::from_rgb(0, 255, 255),    // bright cyan
+        3 => egui::Color32::from_rgb(0, 255, 0),      // bright green
+        4 => egui::Color32::from_rgb(255, 0, 255),    // bright magenta
+        5 => egui::Color32::from_rgb(255, 105, 180),  // bright pink
+        6 => egui::Color32::from_rgb(255, 0, 180),    // purple
+        7 => egui::Color32::from_rgb(255, 255, 0),    // bright yellow
+        8 => egui::Color32::from_rgb(127, 0, 255),    // bright purple
+        9 => egui::Color32::from_rgb(0, 128, 255),    // bright dark blue
+        10 => egui::Color32::from_rgb(255, 0, 0),     // bright red
+        11 => egui::Color32::from_rgb(128, 255, 128), // light green
+        _ => egui::Color32::from_rgb(211, 211, 211),  // light gray
     }
 }

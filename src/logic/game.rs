@@ -13,21 +13,13 @@ use super::{
 
 // clears full rows and applies gravity, recursively
 pub fn update(
-    state: &mut State,
+    state: &mut GameState,
     id_manager: &mut IdManager,
     mut cleared_count: u32,
     mut clear_rows: bool,
-    animate: bool,
-    delay_ms: u64,
 ) -> u32 {
     if !clear_rows {
         return cleared_count;
-    }
-
-    // initial draw
-    if animate && cleared_count == 0 {
-        println!("{}", state);
-        thread::sleep(Duration::from_millis(delay_ms));
     }
 
     clear_rows = false;
@@ -46,11 +38,6 @@ pub fn update(
             state.cleared_rows += 1;
 
             clear_rows = true;
-
-            if animate {
-                println!("{}", state);
-                thread::sleep(Duration::from_millis(delay_ms));
-            }
 
             continue;
         }
@@ -72,19 +59,7 @@ pub fn update(
 
     gravity(state);
 
-    if animate {
-        println!("{}", state);
-        thread::sleep(Duration::from_millis(delay_ms));
-    }
-
-    update(
-        state,
-        id_manager,
-        cleared_count,
-        clear_rows,
-        animate,
-        delay_ms,
-    );
+    update(state, id_manager, cleared_count, clear_rows);
 
     cleared_count
 }
@@ -92,7 +67,7 @@ pub fn update(
 // animated version of update()
 // returns a vector of Fields to be drawn, as animation frames
 pub fn animate_update(
-    state: &mut State,
+    state: &mut GameState,
     id_manager: &mut IdManager,
     mut cleared_count: u32,
     mut clear_rows: bool,
@@ -153,7 +128,7 @@ pub fn animate_update(
     cleared_count
 }
 
-fn gravity(state: &mut State) {
+fn gravity(state: &mut GameState) {
     // if one tile is settled, so will the rest of the tiles that make up the piece
     // where a tile is an entry in a 2d vec (game field),
     // tiles of the same piece have the same composite_id
@@ -211,7 +186,7 @@ fn gravity(state: &mut State) {
 }
 
 // checks if tile is connected to other tiles of the same piece
-fn is_connected(state: &State, row: u8, col: u8, unique_id: &u16) -> bool {
+fn is_connected(state: &GameState, row: u8, col: u8, unique_id: &u16) -> bool {
     // neighbor offsets
     let deltas = vec![(-1, 0), (0, 1), (1, 0), (0, -1)];
 
@@ -278,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_gravity() {
-        let mut state = State::initial_state();
+        let mut state = GameState::initial_game_state();
         state.remaining_pieces = vec!['X'];
 
         let mut id_manager = IdManager::new();
@@ -617,7 +592,7 @@ mod tests {
 
         println!("b4 clear+gravity\n {}", state);
 
-        update(&mut state, &mut id_manager, 0, true, false, 0);
+        update(&mut state, &mut id_manager, 0, true);
 
         println!("after clear+gravity\n {}", state);
 
@@ -626,7 +601,7 @@ mod tests {
 
     #[test]
     fn test_update() {
-        let mut state = State::initial_state();
+        let mut state = GameState::initial_game_state();
         state.remaining_pieces = vec!['X'];
 
         let comp_id1 = create_composite_id(9, 0);
@@ -739,7 +714,7 @@ mod tests {
         println!("b4 clear\n {}", state);
         println!("P unique_id: {}", get_unique_id(comp_id1));
 
-        update(&mut state, &mut IdManager::new(), 0, true, false, 0);
+        update(&mut state, &mut IdManager::new(), 0, true);
         println!("after clear\n {}", state);
 
         // assert_eq!(state.field[13], vec![EMPTY; FIELD_WIDTH as usize]);
