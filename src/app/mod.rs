@@ -136,7 +136,7 @@ impl App {
     }
 
     pub fn test_bot(&mut self) {
-        let runs = 10;
+        let runs = 100;
         let searches = 1000;
         let mut total_run_time = Duration::new(0, 0);
         let mut total_solution_time = Duration::new(0, 0);
@@ -179,7 +179,16 @@ impl App {
 
             println!("run {}: {:?}", (i + 1), run_time);
         }
-        println!("\nfailed runs: {:?}", failed_counter);
+
+        println!(
+            "\ntotal solutions: {:?}",
+            (runs * searches) - failed_counter
+        );
+        println!("failed searches: {:?}", failed_counter);
+        println!(
+            "solutions per second: {:.2}",
+            (runs * searches) as f64 / total_run_time.as_secs_f64()
+        );
         println!("\navg run time: {:?}", total_run_time / runs);
         println!(
             "avg solution time: {:?}",
