@@ -1,17 +1,14 @@
-use egui::{Color32, Pos2, Stroke, Vec2};
+use crate::game::{self, state::Field};
 
-use crate::logic::{
-    game, id_manager,
-    state::{self},
-};
+use egui::{Color32, Pos2, Stroke, Vec2};
 
 pub const SCALE: f32 = 40.0;
 
-pub fn draw_game_field(ui: &mut egui::Ui, field: &state::Field) {
+pub fn draw_game_field(ui: &mut egui::Ui, field: &Field) {
     let (response, painter) = ui.allocate_painter(
         Vec2::new(
-            state::FIELD_WIDTH as f32 * SCALE,
-            state::FIELD_HEIGHT as f32 * SCALE,
+            game::FIELD_WIDTH as f32 * SCALE,
+            game::FIELD_HEIGHT as f32 * SCALE,
         ),
         egui::Sense::hover(),
     );
@@ -21,11 +18,11 @@ pub fn draw_game_field(ui: &mut egui::Ui, field: &state::Field) {
     painter.rect_stroke(draw_area, 0.0, Stroke::new(4.0, Color32::WHITE));
 
     // draw pentominoes
-    for row in 0..state::FIELD_HEIGHT {
-        for col in 0..state::FIELD_WIDTH {
+    for row in 0..game::FIELD_HEIGHT {
+        for col in 0..game::FIELD_WIDTH {
             let tile = field[row][col];
 
-            if tile == state::EMPTY {
+            if tile == game::EMPTY {
                 continue;
             }
 

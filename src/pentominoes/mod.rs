@@ -1,38 +1,14 @@
-// Each line in the CSV file has 4 values + 1D array piece to define one permutation of a pentomino.
-// - First value is the ID for a pentomino, from 0 to 11.
-// - Second value is the index of the permutation (rotation, flip, etc.), between 0 to 7.
-// - Third and fourth values are the X and Y sizes respectively.
-// - The remaining values define an X*Y matrix, displaying the shape of the pentomino.
-
-// This file does not contain a header.
-// The pentominoes should be sorted by ID in increasing order
-
-// EXAMPLE:
-
-// 2,1,3,3,1,0,0,1,1,1,0,0,1
-
-// ID: 2
-// Permutation: 1
-// X: 3 squares
-// Y: 3 squares
-// Shape:
-// X 0 0
-// X X X
-// 0 0 X
-
-use std::collections::HashSet;
-
-pub struct PentominoDB {
+pub struct PentominoDb {
     pub data: Vec<Vec<Vec<Vec<u8>>>>,
 }
 
-impl PentominoDB {
-    pub fn new() -> PentominoDB {
-        let data = PentominoDB::load_pentominoes();
+impl PentominoDb {
+    pub fn new() -> PentominoDb {
+        let data = PentominoDb::load_pentominoes();
 
         // Self::print_mutations(&data);
 
-        PentominoDB { data }
+        PentominoDb { data }
     }
 
     fn print_mutations(mutations: &Vec<Vec<Vec<Vec<u8>>>>) {

@@ -1,26 +1,16 @@
-use std::{
-    cell::RefCell,
-    collections::{BinaryHeap, HashMap, HashSet},
-    fs::OpenOptions,
-    rc::Rc,
+use crate::{
+    game::{self, id_manager::IdManager, state::Field, state::State},
+    pentominoes::PentominoDb,
 };
+use std::{collections::HashSet, rc::Rc};
 
 use priority_queue::PriorityQueue;
 
-use crate::data::pentomino_db::PentominoDB;
-
-use super::{
-    game,
-    id_manager::{self, IdManager},
-    next_shapes::{self, STACK_SIZE},
-    state::{self, Field, GameState},
-};
-
 pub fn search(
-    initial_state: GameState,
-    pent_db: &PentominoDB,
+    initial_state: State,
+    pent_db: &PentominoDb,
     id_manager: &mut IdManager,
-) -> Option<GameState> {
+) -> Option<State> {
     let mut queue = PriorityQueue::new();
     let mut visited = HashSet::new();
 
@@ -56,8 +46,7 @@ pub fn search(
         let piece_to_place = current_state.as_ref().remaining_pieces[0];
 
         // generate_states() will only clone() into uncleared_state if is_first_generation
-        let is_first_generation =
-            current_state.as_ref().remaining_pieces.len() == next_shapes::STACK_SIZE;
+        let is_first_generation = current_state.as_ref().remaining_pieces.len() == game::STACK_SIZE;
 
         let child_states = generate_states(
             current_state,
@@ -79,23 +68,23 @@ pub fn search(
 }
 
 fn generate_states(
-    parent_state_rc: Rc<GameState>,
+    parent_state_rc: Rc<State>,
     piece: char,
-    pent_db: &PentominoDB,
-    id_manager: &mut id_manager::IdManager,
+    pent_db: &PentominoDb,
+    id_manager: &mut IdManager,
     is_first_generation: bool,
-) -> Vec<GameState> {
+) -> Vec<State> {
     let mut states = Vec::new();
 
     let pent_id = game::char_to_id(piece);
     let composite_id = game::create_composite_id(pent_id, id_manager.next_unique_id(pent_id));
 
     for mutation in &pent_db.data[pent_id as usize] {
-        for row in 0..=(state::FIELD_HEIGHT - mutation.len()) {
-            for col in 0..=(state::FIELD_WIDTH - mutation[0].len()) {
+        for row in 0..=(game::FIELD_HEIGHT - mutation.len()) {
+            for col in 0..=(game::FIELD_WIDTH - mutation[0].len()) {
                 // [row][col] is top-left of 2d vec 'mutation'
                 if can_place(parent_state_rc.field.as_ref(), mutation, row, col) {
-                    let mut child_state = GameState {
+                    let mut child_state = State {
                         parent_state: Some(Rc::clone(&parent_state_rc)),
                         uncleared_state: None,
                         field: place_piece(
@@ -143,7 +132,7 @@ fn can_place(field: &Field, mutation: &Vec<Vec<u8>>, row: usize, col: usize) -> 
             }
 
             // if overlapping with other tiles
-            if field[tile_row][tile_col] != state::EMPTY {
+            if field[tile_row][tile_col] != game::EMPTY {
                 return false;
             }
 
@@ -151,16 +140,14 @@ fn can_place(field: &Field, mutation: &Vec<Vec<u8>>, row: usize, col: usize) -> 
             if tile_row < field.len() - 1 {
                 // if bottom-most mutation tile
                 if delta_row == mutation.len() - 1 {
-                    if field[tile_row + 1][tile_col] == state::EMPTY {
+                    if field[tile_row + 1][tile_col] == game::EMPTY {
                         // tile is floating
                         floating_tiles += 1;
                     }
-                } else {
-                    if mutation[delta_row + 1][delta_col] == 0
-                        && field[tile_row + 1][tile_col] == state::EMPTY
-                    {
-                        floating_tiles += 1;
-                    }
+                } else if mutation[delta_row + 1][delta_col] == 0
+                    && field[tile_row + 1][tile_col] == game::EMPTY
+                {
+                    floating_tiles += 1;
                 }
             }
 
@@ -200,20 +187,20 @@ fn place_piece(
     field
 }
 
-pub fn heuristic(state: &mut GameState, id_manager: &mut IdManager) -> i32 {
+pub fn heuristic(state: &mut State, id_manager: &mut IdManager) -> i32 {
     let mut score = 0;
     let mut penalize_top: i32;
 
     let cleared_rows = game::update(state, id_manager, 0, true) as i32;
 
-    score += cleared_rows ^ 4 * 9000;
+    score += cleared_rows ^ (4 * 9000);
 
-    for row in 0..state::FIELD_HEIGHT {
+    for row in 0..game::FIELD_HEIGHT {
         // score bias towards bottom rows
-        penalize_top = 12 * state::FIELD_HEIGHT as i32 / (row as i32 + 1) << 13;
+        penalize_top = (12 * game::FIELD_HEIGHT as i32 / (row as i32 + 1)) << 13;
 
-        for col in 0..state::FIELD_WIDTH {
-            if state.field[row as usize][col as usize] != state::EMPTY {
+        for col in 0..game::FIELD_WIDTH {
+            if state.field[row][col] != game::EMPTY {
                 score -= penalize_top;
             } else {
                 score += penalize_top;
@@ -228,11 +215,11 @@ pub fn heuristic(state: &mut GameState, id_manager: &mut IdManager) -> i32 {
 mod tests {
 
     use super::*;
-    use state::EMPTY;
+    use game::EMPTY;
 
     #[test]
     fn test_try_place() {
-        let mut state = GameState::initial_game_state();
+        let mut state = State::initialize();
 
         state.remaining_pieces = vec!['P', 'N', 'F'];
 
@@ -269,7 +256,7 @@ mod tests {
 
     #[test]
     fn test_heuristic() {
-        let mut state_a = GameState::initial_game_state();
+        let mut state_a = State::initialize();
 
         state_a.remaining_pieces = vec!['X', 'I', 'Z', 'T', 'U'];
 
@@ -291,7 +278,7 @@ mod tests {
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
         ];
 
-        let mut state_b = GameState::initial_game_state();
+        let mut state_b = State::initialize();
 
         state_b.remaining_pieces = vec!['X', 'I', 'Z', 'T', 'U'];
 

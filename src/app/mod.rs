@@ -1,25 +1,25 @@
 use std::{
     collections::VecDeque,
-    thread,
     time::{Duration, Instant},
 };
 
 use crate::{
-    data::pentomino_db::PentominoDB,
-    logic::{
-        bot, game,
+    bot,
+    game::{
+        self,
         id_manager::IdManager,
         next_shapes::NextShapes,
-        state::{Field, GameState},
+        state::{Field, State},
     },
+    pentominoes::{self, PentominoDb},
     ui,
 };
 
 pub struct App {
-    game_state: GameState,
+    game_state: State,
     id_manager: IdManager,
     lookahead: NextShapes,
-    pent_db: PentominoDB,
+    pent_db: pentominoes::PentominoDb,
     delay_ms: u16,
     frames: VecDeque<Field>,
     current_frame: Option<Field>,
@@ -43,9 +43,6 @@ impl eframe::App for App {
                 true,
                 &mut self.frames,
             );
-
-            // TODO: remove duplicates for VecDeque
-            // self.frames.dedup_by(|x, y| x == y);
 
             self.current_frame = self.frames.pop_front();
             self.last_frame_time = Instant::now();
@@ -108,10 +105,10 @@ impl eframe::App for App {
 impl App {
     pub fn new() -> Self {
         Self {
-            game_state: GameState::initial_game_state(),
+            game_state: State::initialize(),
             id_manager: IdManager::new(),
             lookahead: NextShapes::new(),
-            pent_db: PentominoDB::new(),
+            pent_db: PentominoDb::new(),
             delay_ms: 300,
             frames: VecDeque::new(),
             current_frame: Some(Field::new()),
@@ -144,12 +141,12 @@ impl App {
         let mut failed_counter = 0;
 
         for i in 0..runs {
-            let mut state = GameState::initial_game_state();
+            let mut state = State::initialize();
 
             let mut run_time = Duration::new(0, 0);
             let run_start = Instant::now();
 
-            for j in 0..searches {
+            for _ in 0..searches {
                 state.remaining_pieces = self.lookahead.get_next_stack();
 
                 let solution_start = Instant::now();

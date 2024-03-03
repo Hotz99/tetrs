@@ -1,19 +1,19 @@
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    thread,
-    time::Duration,
-};
+pub mod id_manager;
+pub mod next_shapes;
+pub mod state;
 
-use crate::ui;
+use crate::game::{state::Field, state::State};
+use id_manager::IdManager;
+use std::collections::{HashSet, VecDeque};
 
-use super::{
-    id_manager::{self, IdManager},
-    state::{self, *},
-};
+pub const FIELD_WIDTH: usize = 5;
+pub const FIELD_HEIGHT: usize = 15;
+pub const EMPTY: u16 = 13;
+pub const STACK_SIZE: usize = 5;
 
 // clears full rows and applies gravity, recursively
 pub fn update(
-    state: &mut GameState,
+    state: &mut State,
     id_manager: &mut IdManager,
     mut cleared_count: u32,
     mut clear_rows: bool,
@@ -28,7 +28,7 @@ pub fn update(
     for row in (0..FIELD_HEIGHT).rev() {
         // all() is short-circuiting
         // if row is full
-        if (&state.field[row]).iter().all(|&x| x != EMPTY) {
+        if state.field[row].iter().all(|&x| x != EMPTY) {
             // clear row
             for col in 0..FIELD_WIDTH {
                 state.field[row][col] = EMPTY;
@@ -67,7 +67,7 @@ pub fn update(
 // animated version of update()
 // returns a vector of Fields to be drawn, as animation frames
 pub fn animate_update(
-    state: &mut GameState,
+    state: &mut State,
     id_manager: &mut IdManager,
     mut cleared_count: u32,
     mut clear_rows: bool,
@@ -88,7 +88,7 @@ pub fn animate_update(
     for row in (0..FIELD_HEIGHT).rev() {
         // all() is short-circuiting
         // if row is full
-        if (&state.field[row]).iter().all(|&x| x != EMPTY) {
+        if state.field[row].iter().all(|&x| x != EMPTY) {
             // clear row
             for col in 0..FIELD_WIDTH {
                 state.field[row][col] = EMPTY;
@@ -119,6 +119,8 @@ pub fn animate_update(
         }
     }
 
+    frames.push_back(state.field.clone());
+
     gravity(state);
 
     frames.push_back(state.field.clone());
@@ -128,7 +130,7 @@ pub fn animate_update(
     cleared_count
 }
 
-fn gravity(state: &mut GameState) {
+fn gravity(state: &mut State) {
     // if one tile is settled, so will the rest of the tiles that make up the piece
     // where a tile is an entry in a 2d vec (game field),
     // tiles of the same piece have the same composite_id
@@ -186,7 +188,7 @@ fn gravity(state: &mut GameState) {
 }
 
 // checks if tile is connected to other tiles of the same piece
-fn is_connected(state: &GameState, row: u8, col: u8, unique_id: &u16) -> bool {
+fn is_connected(state: &State, row: u8, col: u8, unique_id: &u16) -> bool {
     // neighbor offsets
     let deltas = vec![(-1, 0), (0, 1), (1, 0), (0, -1)];
 
@@ -245,7 +247,7 @@ pub fn get_unique_id(composite_id: u16) -> u16 {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::RefCell, rc::Rc};
+    use crate::game::{self, state::State};
 
     use tests::id_manager::IdManager;
 
@@ -253,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_gravity() {
-        let mut state = GameState::initial_game_state();
+        let mut state = State::initialize();
         state.remaining_pieces = vec!['X'];
 
         let mut id_manager = IdManager::new();
@@ -266,303 +268,303 @@ mod tests {
 
         let field1 = vec![
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-            ],
-            vec![
-                p_composite_id,
-                p_composite_id,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
                 p_composite_id,
                 p_composite_id,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
                 p_composite_id,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                p_composite_id,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                p_composite_id,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+            ],
+            vec![
+                game::EMPTY,
                 l_composite_id,
                 l_composite_id,
                 l_composite_id,
                 l_composite_id,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
         ];
 
         let field2 = vec![
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
                 x_composite_id,
                 x_composite_id,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
+                game::EMPTY,
                 x_composite_id,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
                 l_composite_id,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
                 l_composite_id,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
         ];
 
         let field3 = vec![
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
                 l_composite_id,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
                 l_composite_id,
             ],
             vec![
@@ -573,17 +575,17 @@ mod tests {
                 l_composite_id,
             ],
             vec![
-                state::EMPTY,
+                game::EMPTY,
                 x_composite_id,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
                 l_composite_id,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
                 l_composite_id,
             ],
         ];
@@ -601,7 +603,7 @@ mod tests {
 
     #[test]
     fn test_update() {
-        let mut state = GameState::initial_game_state();
+        let mut state = State::initialize();
         state.remaining_pieces = vec!['X'];
 
         let comp_id1 = create_composite_id(9, 0);
@@ -609,104 +611,92 @@ mod tests {
 
         let field = vec![
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
             vec![
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
+                game::EMPTY,
             ],
-            vec![
-                comp_id1,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-            ],
+            vec![comp_id1, game::EMPTY, game::EMPTY, game::EMPTY, game::EMPTY],
             vec![comp_id1, comp_id2, comp_id2, comp_id2, comp_id2],
-            vec![
-                comp_id1,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-                state::EMPTY,
-            ],
+            vec![comp_id1, game::EMPTY, game::EMPTY, game::EMPTY, game::EMPTY],
         ];
 
         state.field = field;

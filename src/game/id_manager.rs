@@ -25,8 +25,4 @@ impl IdManager {
             next_id += 12;
         }
     }
-
-    pub fn release_id(&mut self, id: usize) {
-        self.used_ids[id] = false;
-    }
 }

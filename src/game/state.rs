@@ -1,46 +1,38 @@
-use std::cell::{Cell, RefCell};
-use std::cmp::Ordering;
+use crate::game;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
-use std::{fmt, thread};
-
-use super::{game, id_manager, next_shapes};
 
 pub type Field = Vec<Vec<u16>>;
 
-pub const FIELD_WIDTH: usize = 5;
-pub const FIELD_HEIGHT: usize = 15;
-pub const EMPTY: u16 = 13;
-
 #[derive(Eq, Clone)]
-pub struct GameState {
-    pub parent_state: Option<Rc<GameState>>,
-    pub uncleared_state: Option<Box<GameState>>,
+pub struct State {
+    pub parent_state: Option<Rc<State>>,
+    pub uncleared_state: Option<Box<State>>,
     pub field: Field,
     pub remaining_pieces: Vec<char>,
     pub cleared_rows: u32,
 }
 
-impl GameState {
-    pub fn initial_game_state() -> GameState {
-        GameState {
+impl State {
+    pub fn initialize() -> State {
+        State {
             parent_state: None,
             uncleared_state: None,
-            field: vec![vec![EMPTY; FIELD_WIDTH]; FIELD_HEIGHT],
-            remaining_pieces: Vec::with_capacity(next_shapes::STACK_SIZE),
+            field: vec![vec![game::EMPTY; game::FIELD_WIDTH]; game::FIELD_HEIGHT],
+            remaining_pieces: Vec::with_capacity(game::STACK_SIZE),
             cleared_rows: 0,
         }
     }
 }
 
-impl fmt::Display for GameState {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(f, "cleared rows: {}", self.cleared_rows)?;
 
         writeln!(f, "cleared:");
         for row in &self.field {
             for &tile in row {
-                if tile == EMPTY {
+                if tile == game::EMPTY {
                     write!(f, "_ ")?;
                     continue;
                 }
@@ -69,7 +61,7 @@ impl fmt::Display for GameState {
     }
 }
 
-impl Hash for GameState {
+impl Hash for State {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for piece in &self.remaining_pieces {
             piece.hash(state);
@@ -83,7 +75,7 @@ impl Hash for GameState {
     }
 }
 
-impl PartialEq for GameState {
+impl PartialEq for State {
     fn eq(&self, other: &Self) -> bool {
         self.field == other.field && self.remaining_pieces == other.remaining_pieces
     }
