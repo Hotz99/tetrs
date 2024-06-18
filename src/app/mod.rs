@@ -16,17 +16,17 @@ use crate::{
 };
 
 pub struct App {
-    game_state: State,
+    pub game_state: State,
     id_manager: IdManager,
     lookahead: NextShapes,
     pent_db: pentominoes::PentominoDb,
-    delay_ms: u16,
+    pub delay_ms: u16,
     frames: VecDeque<Field>,
-    current_frame: Option<Field>,
+    pub current_frame: Option<Field>,
     last_frame_time: Instant,
     solution_times: VecDeque<Duration>,
-    avg_solution_time: Duration,
-    is_bot_paused: bool,
+    pub avg_solution_time: Duration,
+    pub is_bot_paused: bool,
 }
 
 impl eframe::App for App {
@@ -67,35 +67,7 @@ impl eframe::App for App {
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                // left side
-                ui::draw_game_field(ui, self.current_frame.as_ref().unwrap());
-
-                // right side
-                ui.vertical(|ui| {
-                    ui.horizontal(|ui| {
-                        ui.label("Delay (ms): ");
-                        ui.add(egui::Slider::new(&mut self.delay_ms, 0..=1000).logarithmic(true));
-                    });
-
-                    ui.add_space(20.0);
-
-                    ui.label(format!("Cleared rows:  {}", self.game_state.cleared_rows));
-
-                    ui.add_space(20.0);
-
-                    ui.label(format!(
-                        "Avg solution time:  {:.3} ms",
-                        self.avg_solution_time.as_secs_f64() * 1000.0
-                    ));
-
-                    ui.add_space(20.0);
-
-                    if ui.button("Pause | Continue").clicked() {
-                        self.is_bot_paused = !self.is_bot_paused;
-                    }
-                });
-            });
+            ui::draw_ui(ui, self);
         });
 
         ctx.request_repaint();

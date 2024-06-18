@@ -44,6 +44,38 @@ pub fn draw_game_field(ui: &mut egui::Ui, field: &Field) {
     }
 }
 
+pub fn draw_ui(ui: &mut egui::Ui, app: &mut crate::app::App) {
+    ui.horizontal(|ui| {
+        // left side
+        draw_game_field(ui, app.current_frame.as_ref().unwrap());
+
+        // right side
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.label("Delay (ms): ");
+                ui.add(egui::Slider::new(&mut app.delay_ms, 0..=1000).logarithmic(true));
+            });
+
+            ui.add_space(20.0);
+
+            ui.label(format!("Cleared rows:  {}", app.game_state.cleared_rows));
+
+            ui.add_space(20.0);
+
+            ui.label(format!(
+                "Avg solution time:  {:.3} ms",
+                app.avg_solution_time.as_secs_f64() * 1000.0
+            ));
+
+            ui.add_space(20.0);
+
+            if ui.button("Pause | Continue").clicked() {
+                app.is_bot_paused = !app.is_bot_paused;
+            }
+        });
+    });
+}
+
 fn get_pent_color(i: u8) -> egui::Color32 {
     match i {
         0 => egui::Color32::from_rgb(0, 0, 255),      // bright blue
