@@ -1,2 +1,5 @@
-/target
-/.vscode
+target/
+.vscode/
+Cargo.lock
+*.svg
+*.data

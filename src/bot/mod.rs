@@ -1,110 +1,109 @@
-use crate::{
-    game::{self, id_manager::IdManager, state::Field, state::State},
-    pentominoes::PentominoDb,
-};
+use crate::{game, pentominoes};
 use std::{collections::HashSet, rc::Rc};
 
 use priority_queue::PriorityQueue;
 
+mod heuristic;
+
 pub fn search(
-    initial_state: State,
-    pent_db: &PentominoDb,
-    id_manager: &mut IdManager,
-) -> Option<State> {
+    initial_state: game::State,
+    permutations: &pentominoes::Permutations,
+    id_manager: &mut game::IdManager,
+    lookahead_size: &u8,
+) -> Option<game::State> {
     let mut queue = PriorityQueue::new();
     let mut visited = HashSet::new();
 
-    let initial_state_rc = Rc::new(initial_state);
+    let rc_initial_state = Rc::new(initial_state);
 
-    visited.insert(Rc::clone(&initial_state_rc));
-    queue.push(initial_state_rc, 0);
+    visited.insert(Rc::clone(&rc_initial_state));
+    queue.push(rc_initial_state, 0);
 
     loop {
         let (current_state, _) = queue.pop()?;
 
         if current_state.remaining_pieces.is_empty() {
-            // return N-1 parent states, where N is next_shapes::STACK_SIZE
-            let final_state = current_state
-                .as_ref()
-                .clone()
-                .parent_state?
-                .as_ref()
-                .clone()
-                .parent_state?
-                .as_ref()
-                .clone()
-                .parent_state?
-                .as_ref()
-                .clone()
-                .parent_state?
-                .as_ref()
-                .clone();
+            let mut rc_current_state = Rc::clone(&current_state);
+            // return N-1 parent states, where N is App::lookahead_size
+            for _ in 1..*lookahead_size {
+                rc_current_state = match &rc_current_state.parent_state {
+                    Some(parent) => Rc::clone(parent),
+                    // only initial_state has no parent_state
+                    None => break,
+                };
+            }
 
-            return Some(*final_state.uncleared_state.unwrap());
+            // access and clone() `uncleared_state` field
+            // then unwrap(), then dereference `Box` containing `State`
+            return Some(*rc_current_state.uncleared_state.clone().unwrap());
         }
 
-        let piece_to_place = current_state.as_ref().remaining_pieces[0];
-
+        let piece_to_place = current_state.remaining_pieces[0];
         // generate_states() will only clone() into uncleared_state if is_first_generation
-        let is_first_generation = current_state.as_ref().remaining_pieces.len() == game::STACK_SIZE;
+        let is_first_generation = current_state.remaining_pieces.len() == *lookahead_size as usize;
 
         let child_states = generate_states(
-            current_state,
+            &current_state,
             piece_to_place,
-            pent_db,
+            permutations,
             id_manager,
             is_first_generation,
         );
 
         for mut child in child_states {
-            let heuristic = heuristic(&mut child, id_manager);
-            let child_rc = Rc::new(child);
+            let heuristic = heuristic::apply(&mut child, id_manager);
+            let rc_child = Rc::new(child);
 
-            if visited.insert(Rc::clone(&child_rc)) {
-                queue.push(child_rc, heuristic);
+            if visited.insert(Rc::clone(&rc_child)) {
+                queue.push(rc_child, heuristic);
             }
         }
     }
 }
 
 fn generate_states(
-    parent_state_rc: Rc<State>,
+    rc_parent_state: &Rc<game::State>,
     piece: char,
-    pent_db: &PentominoDb,
-    id_manager: &mut IdManager,
+    permutations: &pentominoes::Permutations,
+    id_manager: &mut game::IdManager,
     is_first_generation: bool,
-) -> Vec<State> {
+) -> Vec<game::State> {
     let mut states = Vec::new();
 
-    let pent_id = game::char_to_id(piece);
+    let pent_id = pentominoes::char_to_id(piece);
     let composite_id = game::create_composite_id(pent_id, id_manager.next_unique_id(pent_id));
 
-    for mutation in &pent_db.data[pent_id as usize] {
+    for mutation in &permutations[pent_id as usize] {
         for row in 0..=(game::FIELD_HEIGHT - mutation.len()) {
             for col in 0..=(game::FIELD_WIDTH - mutation[0].len()) {
                 // [row][col] is top-left of 2d vec 'mutation'
-                if can_place(parent_state_rc.field.as_ref(), mutation, row, col) {
-                    let mut child_state = State {
-                        parent_state: Some(Rc::clone(&parent_state_rc)),
-                        uncleared_state: None,
-                        field: place_piece(
-                            parent_state_rc.field.clone(),
-                            mutation,
-                            composite_id,
-                            row,
-                            col,
-                        ),
-                        cleared_rows: parent_state_rc.cleared_rows,
-                        remaining_pieces: parent_state_rc.remaining_pieces.clone(),
-                    };
-
-                    if is_first_generation {
-                        child_state.uncleared_state = Some(Box::new(child_state.clone()));
-                    }
-
-                    child_state.remaining_pieces.remove(0);
-                    states.push(child_state);
+                if !can_place(rc_parent_state.field.as_ref(), mutation, row, col) {
+                    continue;
                 }
+
+                let mut child_state = game::State {
+                    // https://rust-lang.github.io/rust-clippy/master/index.html#needless_borrow
+                    // before: parent_state: Some(&rc_parent_state)
+                    // after:
+                    parent_state: Some(Rc::clone(rc_parent_state)),
+                    uncleared_state: None,
+                    field: place_piece(
+                        rc_parent_state.field.clone(),
+                        mutation,
+                        composite_id,
+                        row,
+                        col,
+                    ),
+                    cleared_rows: rc_parent_state.cleared_rows,
+                    remaining_pieces: rc_parent_state.remaining_pieces.clone(),
+                };
+
+                if is_first_generation {
+                    child_state.uncleared_state = Some(Box::new(child_state.clone()));
+                }
+
+                child_state.remaining_pieces.remove(0);
+                states.push(child_state);
             }
         }
     }
@@ -112,7 +111,10 @@ fn generate_states(
     states
 }
 
-fn can_place(field: &Field, mutation: &Vec<Vec<u8>>, row: usize, col: usize) -> bool {
+// https://rust-lang.github.io/rust-clippy/master/index.html#ptr_arg
+// before: mutation: &Vec<Vec<u8>>
+// after: mutation: &[Vec<u8>]
+fn can_place(field: &game::GameField, mutation: &[Vec<u8>], row: usize, col: usize) -> bool {
     let mut floating_tiles = 0;
 
     for delta_row in 0..mutation.len() {
@@ -165,12 +167,15 @@ fn can_place(field: &Field, mutation: &Vec<Vec<u8>>, row: usize, col: usize) -> 
 }
 
 fn place_piece(
-    mut field: Field,
-    mutation: &Vec<Vec<u8>>,
+    mut field: game::GameField,
+    // https://rust-lang.github.io/rust-clippy/master/index.html#ptr_arg
+    // before: mutation: &Vec<Vec<u8>>,
+    // after:
+    mutation: &[Vec<u8>],
     composite_id: u16,
     row: usize,
     col: usize,
-) -> Field {
+) -> game::GameField {
     for delta_row in 0..mutation.len() {
         for delta_col in 0..mutation[0].len() {
             if mutation[delta_row][delta_col] == 0 {
@@ -187,30 +192,6 @@ fn place_piece(
     field
 }
 
-pub fn heuristic(state: &mut State, id_manager: &mut IdManager) -> i32 {
-    let mut score = 0;
-    let mut penalize_top: i32;
-
-    let cleared_rows = game::update(state, id_manager, 0, true) as i32;
-
-    score += cleared_rows ^ (4 * 9000);
-
-    for row in 0..game::FIELD_HEIGHT {
-        // score bias towards bottom rows
-        penalize_top = (12 * game::FIELD_HEIGHT as i32 / (row as i32 + 1)) << 13;
-
-        for col in 0..game::FIELD_WIDTH {
-            if state.field[row][col] != game::EMPTY {
-                score -= penalize_top;
-            } else {
-                score += penalize_top;
-            }
-        }
-    }
-
-    score
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -219,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_try_place() {
-        let mut state = State::initialize();
+        let mut state = game::State::new(crate::DEFAULT_LOOKAHEAD_SIZE);
 
         state.remaining_pieces = vec!['P', 'N', 'F'];
 
@@ -256,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_heuristic() {
-        let mut state_a = State::initialize();
+        let mut state_a = game::State::new(crate::DEFAULT_LOOKAHEAD_SIZE);
 
         state_a.remaining_pieces = vec!['X', 'I', 'Z', 'T', 'U'];
 
@@ -278,7 +259,7 @@ mod tests {
             vec![EMPTY, EMPTY, EMPTY, EMPTY, EMPTY],
         ];
 
-        let mut state_b = State::initialize();
+        let mut state_b = game::State::new(crate::DEFAULT_LOOKAHEAD_SIZE);
 
         state_b.remaining_pieces = vec!['X', 'I', 'Z', 'T', 'U'];
 
@@ -300,10 +281,10 @@ mod tests {
             vec![1, 2, 3, 4, EMPTY],
         ];
 
-        let mut id_manager = IdManager::new();
+        let mut id_manager = game::IdManager::default();
 
-        let heuristic_a = heuristic(&mut state_a, &mut id_manager);
-        let heuristic_b = heuristic(&mut state_b, &mut id_manager);
+        let heuristic_a = heuristic::apply(&mut state_a, &mut id_manager);
+        let heuristic_b = heuristic::apply(&mut state_b, &mut id_manager);
 
         println!("HEURISTIC A: {}", heuristic_a);
 

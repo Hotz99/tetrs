@@ -12,16 +12,16 @@ pub struct NextShapes {
     stack_size: usize,
 }
 
+// TODO refactor this bs
 impl NextShapes {
-    pub fn new() -> NextShapes {
+    pub fn new(lookahead_size: u8) -> NextShapes {
         let mut next_shapes = NextShapes {
             all_shapes: vec!['X', 'V', 'Z', 'W', 'I', 'T', 'Y', 'L', 'N', 'P', 'U', 'F'],
             available_shapes: Vec::new(),
             next_up_shapes: VecDeque::new(),
-            stack_size: game::STACK_SIZE,
+            stack_size: lookahead_size as usize,
         };
 
-        next_shapes.refresh();
         next_shapes.generate_next_up_shapes();
         next_shapes
     }
@@ -49,9 +49,9 @@ impl NextShapes {
     }
 
     pub fn get_next_stack(&mut self) -> Vec<char> {
-        let mut next_stack = Vec::with_capacity(game::STACK_SIZE);
+        let mut next_stack = Vec::with_capacity(self.stack_size);
 
-        for i in 0..game::STACK_SIZE {
+        for i in 0..self.stack_size {
             next_stack.push(self.next_up_shapes[i]);
         }
 

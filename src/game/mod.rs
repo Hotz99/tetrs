@@ -1,23 +1,27 @@
-pub mod id_manager;
-pub mod next_shapes;
-pub mod state;
+mod id_manager;
+mod next_shapes;
+mod state;
 
-use crate::game::{state::Field, state::State};
-use id_manager::IdManager;
+// re-export modules to import with game::State instead of game::state::State
+pub use crate::game::{
+    id_manager::IdManager, next_shapes::NextShapes, state::GameField, state::State,
+};
+
 use std::collections::{HashSet, VecDeque};
 
 pub const FIELD_WIDTH: usize = 5;
 pub const FIELD_HEIGHT: usize = 15;
 pub const EMPTY: u16 = 13;
-pub const STACK_SIZE: usize = 5;
+pub const STACK_SIZE: usize = 4;
 
-// clears full rows and applies gravity, recursively
+// recursively clears full rows and applies gravity
 pub fn update(
     state: &mut State,
     id_manager: &mut IdManager,
     mut cleared_count: u32,
     mut clear_rows: bool,
 ) -> u32 {
+    // base case
     if !clear_rows {
         return cleared_count;
     }
@@ -25,6 +29,7 @@ pub fn update(
     clear_rows = false;
 
     // for each row, we either clear it or update the composite_id of its tiles
+    // rev() to start from the bottom
     for row in (0..FIELD_HEIGHT).rev() {
         // all() is short-circuiting
         // if row is full
@@ -46,7 +51,9 @@ pub fn update(
         for col in 0..FIELD_WIDTH {
             let tile = state.field[row][col];
 
-            if tile == EMPTY || is_connected(state, row as u8, col as u8, &get_unique_id(tile)) {
+            if tile == EMPTY
+                || is_connected(&state.field, row as u8, col as u8, &get_unique_id(tile))
+            {
                 continue;
             }
 
@@ -57,80 +64,85 @@ pub fn update(
         }
     }
 
-    gravity(state);
+    gravity(&mut state.field);
 
     update(state, id_manager, cleared_count, clear_rows);
 
     cleared_count
 }
 
-// animated version of update()
-// returns a vector of Fields to be drawn, as animation frames
+// animated version of update():
+// applies game logic and also
+// populates a vector of `GameField`s to be drawn, as animation frames
 pub fn animate_update(
-    state: &mut State,
-    id_manager: &mut IdManager,
-    mut cleared_count: u32,
-    mut clear_rows: bool,
-    frames: &mut VecDeque<Field>,
-) -> u32 {
-    if !clear_rows {
-        return cleared_count;
+    field: &mut GameField,
+    id_manager: &mut id_manager::IdManager,
+    mut continue_update: bool,
+    cleared_count: u32,
+    total_cleared_count: &mut u32,
+    frames: &mut VecDeque<GameField>,
+) {
+    if !continue_update {
+        return;
     }
 
-    // initial frame
+    // TODO refactor to not depend on cleared_count
+    // initial frame, add before any updating
     if cleared_count == 0 {
-        frames.push_back(state.field.clone());
+        frames.push_back(field.clone());
     }
 
-    clear_rows = false;
+    continue_update = false;
 
     // for each row, we either clear it or update the composite_id of its tiles
     for row in (0..FIELD_HEIGHT).rev() {
         // all() is short-circuiting
         // if row is full
-        if state.field[row].iter().all(|&x| x != EMPTY) {
+        if field[row].iter().all(|&x| x != EMPTY) {
             // clear row
             for col in 0..FIELD_WIDTH {
-                state.field[row][col] = EMPTY;
+                field[row][col] = EMPTY;
             }
 
-            cleared_count += 1;
-            state.cleared_rows += 1;
+            *total_cleared_count += 1;
+            continue_update = true;
 
-            clear_rows = true;
-
-            frames.push_back(state.field.clone());
+            frames.push_back(field.clone());
 
             continue;
         }
 
         // update composite_id of separated tiles
         for col in 0..FIELD_WIDTH {
-            let tile = state.field[row][col];
+            let tile = field[row][col];
 
-            if tile == EMPTY || is_connected(state, row as u8, col as u8, &get_unique_id(tile)) {
+            if tile == EMPTY || is_connected(field, row as u8, col as u8, &get_unique_id(tile)) {
                 continue;
             }
 
             let pent_id = get_pent_id(tile);
 
-            state.field[row][col] =
-                create_composite_id(pent_id, id_manager.next_unique_id(pent_id));
+            field[row][col] = create_composite_id(pent_id, id_manager.next_unique_id(pent_id));
         }
     }
 
-    frames.push_back(state.field.clone());
+    frames.push_back(field.clone());
 
-    gravity(state);
+    gravity(field);
 
-    frames.push_back(state.field.clone());
+    frames.push_back(field.clone());
 
-    animate_update(state, id_manager, cleared_count, clear_rows, frames);
-
-    cleared_count
+    animate_update(
+        field,
+        id_manager,
+        continue_update,
+        cleared_count,
+        total_cleared_count,
+        frames,
+    );
 }
 
-fn gravity(state: &mut State) {
+fn gravity(field: &mut GameField) {
     // if one tile is settled, so will the rest of the tiles that make up the piece
     // where a tile is an entry in a 2d vec (game field),
     // tiles of the same piece have the same composite_id
@@ -144,7 +156,7 @@ fn gravity(state: &mut State) {
 
         for row in (0..FIELD_HEIGHT).rev() {
             for col in 0..FIELD_WIDTH {
-                let tile = state.field[row][col];
+                let tile = field[row][col];
 
                 if tile == EMPTY {
                     continue;
@@ -155,7 +167,7 @@ fn gravity(state: &mut State) {
                     continue;
                 }
 
-                let below = state.field[row + 1][col];
+                let below = field[row + 1][col];
 
                 if below != EMPTY && below != tile {
                     settled_ids.insert(tile);
@@ -169,14 +181,14 @@ fn gravity(state: &mut State) {
         let mut shifted = false;
 
         for &(row, col) in &possible_shifts {
-            let tile = state.field[row][col];
+            let tile = field[row][col];
 
             if settled_ids.contains(&tile) {
                 continue;
             }
 
-            state.field[row][col] = EMPTY;
-            state.field[row + 1][col] = tile;
+            field[row][col] = EMPTY;
+            field[row + 1][col] = tile;
 
             shifted = true;
         }
@@ -188,7 +200,7 @@ fn gravity(state: &mut State) {
 }
 
 // checks if tile is connected to other tiles of the same piece
-fn is_connected(state: &State, row: u8, col: u8, unique_id: &u16) -> bool {
+fn is_connected(field: &GameField, row: u8, col: u8, unique_id: &u16) -> bool {
     // neighbor offsets
     let deltas = vec![(-1, 0), (0, 1), (1, 0), (0, -1)];
 
@@ -197,14 +209,14 @@ fn is_connected(state: &State, row: u8, col: u8, unique_id: &u16) -> bool {
         let tile_col = col as i8 + delta_col;
 
         if tile_row < 0
-            || tile_row >= state.field.len() as i8
+            || tile_row >= field.len() as i8
             || tile_col < 0
-            || tile_col >= state.field[0].len() as i8
+            || tile_col >= field[0].len() as i8
         {
             continue;
         }
 
-        let neighbor = state.field[tile_row as usize][tile_col as usize];
+        let neighbor = field[tile_row as usize][tile_col as usize];
 
         if neighbor != EMPTY && get_unique_id(neighbor) == *unique_id {
             return true;
@@ -212,24 +224,6 @@ fn is_connected(state: &State, row: u8, col: u8, unique_id: &u16) -> bool {
     }
 
     false
-}
-
-pub fn char_to_id(c: char) -> u8 {
-    match c {
-        'X' => 0,
-        'I' => 1,
-        'Z' => 2,
-        'T' => 3,
-        'U' => 4,
-        'V' => 5,
-        'W' => 6,
-        'Y' => 7,
-        'L' => 8,
-        'P' => 9,
-        'N' => 10,
-        'F' => 11,
-        _ => 255,
-    }
 }
 
 // composite_id (16 bits) = pent_id (4 bits) + unique_id (12 bits)
@@ -255,10 +249,10 @@ mod tests {
 
     #[test]
     fn test_gravity() {
-        let mut state = State::initialize();
+        let mut state = State::new(crate::DEFAULT_LOOKAHEAD_SIZE);
         state.remaining_pieces = vec!['X'];
 
-        let mut id_manager = IdManager::new();
+        let mut id_manager = IdManager::default();
 
         let l_composite_id = create_composite_id(8, id_manager.next_unique_id(8));
 
@@ -603,7 +597,7 @@ mod tests {
 
     #[test]
     fn test_update() {
-        let mut state = State::initialize();
+        let mut state = State::new(crate::DEFAULT_LOOKAHEAD_SIZE);
         state.remaining_pieces = vec!['X'];
 
         let comp_id1 = create_composite_id(9, 0);
@@ -704,12 +698,15 @@ mod tests {
         println!("b4 clear\n {}", state);
         println!("P unique_id: {}", get_unique_id(comp_id1));
 
-        update(&mut state, &mut IdManager::new(), 0, true);
+        update(&mut state, &mut IdManager::default(), 0, true);
         println!("after clear\n {}", state);
 
         // assert_eq!(state.field[13], vec![EMPTY; FIELD_WIDTH as usize]);
         // assert_eq!(state.field[12][0], EMPTY);
-        assert_eq!(is_connected(&state, 12, 0, &get_unique_id(comp_id1)), false);
+        assert_eq!(
+            is_connected(&state.field, 12, 0, &get_unique_id(comp_id1)),
+            false
+        );
     }
 
     #[test]

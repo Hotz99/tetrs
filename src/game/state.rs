@@ -2,24 +2,28 @@ use crate::game;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-pub type Field = Vec<Vec<u16>>;
+// u16 has enough bits to store pentomino id and rotation
+pub type GameField = Vec<Vec<u16>>;
 
-#[derive(Eq, Clone)]
+#[derive(Eq, Clone, Debug)]
 pub struct State {
+    // Rc<T> for multiple ownership of parent_state between children states
+    // also avoids inifinite size
     pub parent_state: Option<Rc<State>>,
+    // Box<T> for self-referential data, avoids inifinite size
     pub uncleared_state: Option<Box<State>>,
-    pub field: Field,
+    pub field: GameField,
     pub remaining_pieces: Vec<char>,
     pub cleared_rows: u32,
 }
 
 impl State {
-    pub fn initialize() -> State {
+    pub fn new(lookahead_size: u8) -> Self {
         State {
             parent_state: None,
             uncleared_state: None,
             field: vec![vec![game::EMPTY; game::FIELD_WIDTH]; game::FIELD_HEIGHT],
-            remaining_pieces: Vec::with_capacity(game::STACK_SIZE),
+            remaining_pieces: Vec::with_capacity(lookahead_size as usize),
             cleared_rows: 0,
         }
     }
@@ -29,7 +33,7 @@ impl std::fmt::Display for State {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         writeln!(f, "cleared rows: {}", self.cleared_rows)?;
 
-        writeln!(f, "cleared:");
+        writeln!(f, "cleared:")?;
         for row in &self.field {
             for &tile in row {
                 if tile == game::EMPTY {

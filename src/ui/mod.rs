@@ -1,12 +1,13 @@
-use crate::game::{self, state::Field};
+use core::panic;
+use std::time::Duration;
 
-use egui::{Color32, Pos2, Stroke, Vec2};
+use crate::{app, game};
 
 pub const SCALE: f32 = 40.0;
 
-pub fn draw_game_field(ui: &mut egui::Ui, field: &Field) {
+pub fn draw_game_field(ui: &mut egui::Ui, field: &game::GameField) {
     let (response, painter) = ui.allocate_painter(
-        Vec2::new(
+        egui::Vec2::new(
             game::FIELD_WIDTH as f32 * SCALE,
             game::FIELD_HEIGHT as f32 * SCALE,
         ),
@@ -15,11 +16,15 @@ pub fn draw_game_field(ui: &mut egui::Ui, field: &Field) {
 
     let draw_area = response.rect;
 
-    painter.rect_stroke(draw_area, 0.0, Stroke::new(4.0, Color32::WHITE));
+    painter.rect_stroke(draw_area, 0.0, egui::Stroke::new(4.0, egui::Color32::WHITE));
 
     // draw pentominoes
-    for row in 0..game::FIELD_HEIGHT {
-        for col in 0..game::FIELD_WIDTH {
+    // according to the doc below, the refactored code is more idiomatic AND more efficient:
+    // https://rust-lang.github.io/rust-clippy/master/index.html#needless_range_loop
+    // before: for row in 0..game::FIELD_HEIGHT {
+    // after:
+    for (row, _) in field.iter().enumerate().take(game::FIELD_HEIGHT) {
+        for (col, _) in field[row].iter().enumerate().take(game::FIELD_WIDTH) {
             let tile = field[row][col];
 
             if tile == game::EMPTY {
@@ -34,8 +39,8 @@ pub fn draw_game_field(ui: &mut egui::Ui, field: &Field) {
 
             painter.rect_filled(
                 egui::Rect::from_min_max(
-                    Pos2::new(x + (spacing / 2.0), y + (spacing / 2.0)),
-                    Pos2::new(x + SCALE - (spacing / 2.0), y + SCALE - (spacing / 2.0)),
+                    egui::Pos2::new(x + (spacing / 2.0), y + (spacing / 2.0)),
+                    egui::Pos2::new(x + SCALE - (spacing / 2.0), y + SCALE - (spacing / 2.0)),
                 ),
                 6.0,
                 color,
@@ -44,33 +49,40 @@ pub fn draw_game_field(ui: &mut egui::Ui, field: &Field) {
     }
 }
 
-pub fn draw_ui(ui: &mut egui::Ui, app: &mut crate::app::App) {
+pub fn draw_ui(
+    ui: &mut egui::Ui,
+    frame_to_draw: &game::GameField,
+    delay_ms: &mut u16,
+    cleared_rows: u32,
+    ema_solution_time_ms: f64,
+    is_bot_paused: &mut bool,
+) {
     ui.horizontal(|ui| {
         // left side
-        draw_game_field(ui, app.current_frame.as_ref().unwrap());
+        draw_game_field(ui, frame_to_draw);
 
         // right side
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.label("Delay (ms): ");
-                ui.add(egui::Slider::new(&mut app.delay_ms, 0..=1000).logarithmic(true));
+                ui.add(egui::Slider::new(delay_ms, 0..=1000).logarithmic(true));
             });
 
             ui.add_space(20.0);
 
-            ui.label(format!("Cleared rows:  {}", app.game_state.cleared_rows));
+            ui.label(format!("Cleared rows:  {}", cleared_rows));
 
             ui.add_space(20.0);
 
             ui.label(format!(
                 "Avg solution time:  {:.3} ms",
-                app.avg_solution_time.as_secs_f64() * 1000.0
+                ema_solution_time_ms
             ));
 
             ui.add_space(20.0);
 
             if ui.button("Pause | Continue").clicked() {
-                app.is_bot_paused = !app.is_bot_paused;
+                *is_bot_paused = !*is_bot_paused;
             }
         });
     });

@@ -3,7 +3,7 @@ pub struct IdManager {
 }
 
 impl IdManager {
-    pub fn new() -> Self {
+    pub fn default() -> Self {
         Self {
             used_ids: vec![false; 4096],
         }

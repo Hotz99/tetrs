@@ -5,7 +5,7 @@ Each line in the CSV file uses 4+ values to define one permutation of a pentomin
 - The remaining values define an X*Y matrix, displaying the shape of the pentomino.
 
 This file does not contain a header.
-The pentominoes should be sorted by ID in increasing order
+The pentominoes are sorted by ID in increasing order
 
 EXAMPLE:
 

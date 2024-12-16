@@ -9,6 +9,6 @@ egui = "0.26.2"
 priority-queue = "1.3.2"
 rand = "0.8.5"
 
-# uncomment for flamegraph generation
 [profile.release]
+# needed for flamegraph generation
 debug = true
